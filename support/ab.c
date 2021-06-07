@@ -1006,6 +1006,8 @@ static void output_results(int sig)
         apr_interval_time_t mediancon = 0, mediantot = 0, mediand = 0, medianwait = 0;
         double sdtot = 0, sdcon = 0, sdd = 0, sdwait = 0;
 
+        /* Stats is being used here too, the mechanism of the output result method should be changed */
+        /*Commented by Sara */
         for (i = 0; i < done; i++) {
             struct data *s = &stats[i];
             mincon = ap_min(mincon, s->ctime);
@@ -1490,6 +1492,8 @@ static void close_connection(struct connection * c)
             err_length++;
         }
         /* save out time */
+        /*Here stats is being used, which needs to be eliminated*/
+        /*Commented by Sara */
         if (done < requests) {
             struct data *s = &stats[done++];
             c->done      = lasttime = apr_time_now();
@@ -1761,6 +1765,9 @@ read_more:
             bad++;
             err_length++;
         }
+
+        /*Here also stats is being used, needs to be removed */
+        /*Commented by Sara */
         if (done < requests) {
             struct data *s = &stats[done++];
             doneka++;
@@ -1826,6 +1833,9 @@ static void test(void)
      * XXX: a way to calculate the stats without requiring O(requests) memory
      * XXX: would be nice.
      */
+
+    /*This is where AB is allocating memory, regarding the number of requests */
+    /*Commented by Sara*/
     stats = xcalloc(requests, sizeof(struct data));
 
     if ((status = apr_pollset_create(&readbits, concurrency, cntxt,
