@@ -1167,7 +1167,7 @@ static void output_results(int sig)
 
 
             printf("Total:      " CONF_FMT_STRING,
-                   /*mintot*/ /*Commented by Sara*/,minTotal meantot, sdtot, mediantot, maxtot);
+                   /*mintot*/ /*Commented by Sara*/minTotal, meantot, sdtot, mediantot, maxtot);
             /*Added by Sara */
             printf("Total Real:      " CONF_FMT_STRING,
                    mintot, meantot, sdtot, mediantot, maxtot);       
