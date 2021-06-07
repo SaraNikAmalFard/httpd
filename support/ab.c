@@ -351,7 +351,7 @@ int err_response = 0;      /* requests with invalid or non-200 response */
 
 apr_interval_time_t minConnection = AB_MAX; /*This global minimum connection time is added by Sara to keep track of min connection online*/
 apr_interval_time_t minWait = AB_MAX; /*This global minimum waiting time is added by Sara to keep track of min waiting online*/
-
+apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added by Sara to keep track of min waiting online*/
 
 #ifdef USE_SSL
 int is_ssl;
@@ -899,6 +899,11 @@ static apr_interval_time_t getMinWait(struct data *currentReq)
     return minWait;
 }
 
+static apr_interval_time_t getMinTotal(struct data *currentReq)
+{
+    minTotal = ap_min(minTotal, currentReq->time);
+    return minTotal;
+}
 
 /* --------------------------------------------------------- */
 
@@ -1112,7 +1117,6 @@ static void output_results(int sig)
         /*Added by Sara*/
         minConnection = ap_round_ms(minConnection);
 
-
         mind       = ap_round_ms(mind);
 
         /*Added by Sara*/
@@ -1120,6 +1124,11 @@ static void output_results(int sig)
 
         /*The real one*/
         minwait    = ap_round_ms(minwait);
+        
+        /*Added by Sara*/
+        minTotal = ap_double_ms(minTotal);
+
+        /*The real one*/
         mintot     = ap_round_ms(mintot);
         meancon    = ap_round_ms(meancon);
         meand      = ap_round_ms(meand);
@@ -1141,24 +1150,27 @@ static void output_results(int sig)
         if (confidence) {
 #define CONF_FMT_STRING "%5" APR_TIME_T_FMT " %4" APR_TIME_T_FMT " %5.1f %6" APR_TIME_T_FMT " %7" APR_TIME_T_FMT "\n"
             printf("              min  mean[+/-sd] median   max\n");
-            printf("Connect:    " CONF_FMT_STRING,
-                   /*mincon*/ minConnection, meancon, sdcon, mediancon, maxcon);
+            printf("Connect:   " CONF_FMT_STRING,
+                   /*mincon* /*Commented by Sara*/ minConnection, meancon, sdcon, mediancon, maxcon);
 
             /*Added by Sara to compare the real mincon and the the one we developed*/
-            printf("Connec Real:    " CONF_FMT_STRING,
+            printf("Connect Real:    " CONF_FMT_STRING,
                    mincon, meancon, sdcon, mediancon, maxcon);
             printf("Processing: " CONF_FMT_STRING,
                    mind, meand, sdd, mediand, maxd);
 
-            printf("Waiting:    " CONF_FMT_STRING,
-                   /*minwait*/ minWait, meanwait, sdwait, medianwait, maxwait);
+            printf("Waiting:   " CONF_FMT_STRING,
+                   /*minwait*/ /* Commented by Sara*/minWait, meanwait, sdwait, medianwait, maxwait);
 
             printf("Waiting Real:    " CONF_FMT_STRING,
                    minwait, meanwait, sdwait, medianwait, maxwait);
 
 
             printf("Total:      " CONF_FMT_STRING,
-                   mintot, meantot, sdtot, mediantot, maxtot);
+                   /*mintot*/ /*Commented by Sara*/,minTotal meantot, sdtot, mediantot, maxtot);
+            /*Added by Sara */
+            printf("Total Real:      " CONF_FMT_STRING,
+                   mintot, meantot, sdtot, mediantot, maxtot);       
 #undef CONF_FMT_STRING
 
 #define     SANE(what,mean,median,sd) \
@@ -1543,6 +1555,7 @@ static void close_connection(struct connection * c)
             /*Calling getMinCoonection and getMinWait methods in close connection method, not sure if this is the correct place yet!*/
             minConnection = getMinCon(s);
             minWait = getMinWait(s);
+            minTotal = getMinTotal(s);
             if (heartbeatres && !(done % heartbeatres)) {
                 fprintf(stderr, "Completed %d requests\n", done);
                 fflush(stderr);
