@@ -355,6 +355,8 @@ apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added
 
 apr_interval_time_t maxConnection = 0;  /*This global minimum total time is added by Sara to keep track of max connection online*/
 apr_interval_time_t maxWait = 0;        /*This global minimum total time is added by Sara to keep track of max waiting time online*/
+apr_interval_time_t maxTotal = 0;       /*This global minimum total time is added by Sara to keep track of max total time online*/
+
 
 
 #ifdef USE_SSL
@@ -910,18 +912,25 @@ static apr_interval_time_t getMinTotal(struct data *currentReq)
     return minTotal;
 }
 
-/*This method is added by Sara to calculate the maximum  connection time without stats (online)*/
+/*This method is added by Sara to calculate the maximum connection time without stats (online)*/
 static apr_interval_time_t getMaxCon(struct  data* currentReq)
 {
     maxConnection = ap_max(maxConnection, currentReq->ctime);
     return maxConnection;
 };
 
-/*This method is added by Sara to calculate the maximum  waiting time without stats (online)*/
+/*This method is added by Sara to calculate the maximum waiting time without stats (online)*/
 static apr_interval_time_t getMaxWait(struct data *currentReq)
 {
     maxWait = ap_max(maxWait, currentReq->waittime);
     return maxWait;
+}
+
+/*This method is added by Sara to calculate the maximum total time without stats (online)*/
+static apr_interval_time_t getMaxTotal(struct data *currentReq)
+{
+    maxTotal = ap_max(maxTotal, currentReq->time);
+    return maxTotal;
 }
 
 /* --------------------------------------------------------- */
@@ -1155,13 +1164,17 @@ static void output_results(int sig)
         /*The real ones*/
         maxcon     = ap_round_ms(maxcon);
         maxwait    = ap_round_ms(maxwait);
+        maxd       = ap_round_ms(maxd);
+        maxtot     = ap_round_ms(maxtot);
+
 
         /*Added by Sara*/
         maxConnection = ap_round_ms(maxConnection);
         maxWait = ap_round_ms(maxWait);
-
-        maxd       = ap_round_ms(maxd);
-        maxtot     = ap_round_ms(maxtot);
+        maxTotal = ap_round_ms(maxTotal);
+        /* max Proessing time must be yet calculated */
+        
+        
         sdcon      = ap_double_ms(sdcon);
         sdd        = ap_double_ms(sdd);
         sdwait     = ap_double_ms(sdwait);
@@ -1188,8 +1201,9 @@ static void output_results(int sig)
 
 
             printf("Total:      " CONF_FMT_STRING,
-                   /*mintot*/ /*Commented by Sara*/minTotal, meantot, sdtot, mediantot, maxtot);
-            /*Copied by Sara to compare the calculated total time with the real one */
+                   /*mintot*/ /*Commented by Sara*/minTotal, meantot, sdtot, mediantot, /*maxtot*/ maxTotal);
+
+            /*Copied by Sara to compare the calculated total time with the real min and max total */
             printf("Total Real:      " CONF_FMT_STRING,
                    mintot, meantot, sdtot, mediantot, maxtot);       
 #undef CONF_FMT_STRING
@@ -1573,13 +1587,16 @@ static void close_connection(struct connection * c)
             s->ctime     = ap_max(0, c->connect - c->start);
             s->time      = ap_max(0, c->done - c->start);
             s->waittime  = ap_max(0, c->beginread - c->endwrite);
+
             /*Calling getMinCoonection and getMinWait methods in close connection method, not sure if this is the correct place yet!*/
+            /* Added by Sara */
             minConnection = getMinCon(s);
             minWait = getMinWait(s);
             minTotal = getMinTotal(s);
             
             maxConnection = getMaxCon(s);
             maxWait = getMaxWait(s);
+            maxTotal = getMaxTotal(s);
 
             if (heartbeatres && !(done % heartbeatres)) {
                 fprintf(stderr, "Completed %d requests\n", done);
