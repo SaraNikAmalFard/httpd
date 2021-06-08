@@ -353,6 +353,8 @@ apr_interval_time_t minConnection = AB_MAX; /*This global minimum connection tim
 apr_interval_time_t minWait = AB_MAX; /*This global minimum waiting time is added by Sara to keep track of min waiting online*/
 apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added by Sara to keep track of min waiting online*/
 
+apr_interval_time_t maxConnection = 0;
+
 #ifdef USE_SSL
 int is_ssl;
 SSL_CTX *ssl_ctx;
@@ -892,18 +894,26 @@ static apr_interval_time_t getMinCon(struct data *currentReq)
     return minConnection;
 }
 
-/*This method is added by Sara to calculate the minimum waiting wime without stats (online)*/
+/*This method is added by Sara to calculate the minimum waiting time without stats (online)*/
 static apr_interval_time_t getMinWait(struct data *currentReq)
 {
     minWait = ap_min(minWait,currentReq->waittime);
     return minWait;
 }
 
+/*This method is added by Sara to calculate the minimum total time without stats (online)*/
 static apr_interval_time_t getMinTotal(struct data *currentReq)
 {
     minTotal = ap_min(minTotal, currentReq->time);
     return minTotal;
 }
+
+/*This method is added by Sara to calculate the maximum  connection time without stats (online)*/
+static apr_interval_time_t getMaxCon(struct  data* currentReq)
+{
+    maxConnection = ap_max(maxConnection, currentReq->ctime);
+    return maxConnection;
+};
 
 /* --------------------------------------------------------- */
 
@@ -1036,7 +1046,7 @@ static void output_results(int sig)
             struct data *s = &stats[i];
             mincon = ap_min(mincon, s->ctime);
             mintot = ap_min(mintot, s->time);
-            mind = ap_min(mind, s->time - s->ctime);
+            mind = ap_min(mind, s->time - s->ctime);    /*Min processing should still be calculated online by Sara*/
             minwait = ap_min(minwait, s->waittime);
 
             maxcon = ap_max(maxcon, s->ctime);
@@ -1138,7 +1148,12 @@ static void output_results(int sig)
         mediand    = ap_round_ms(mediand);
         medianwait = ap_round_ms(medianwait);
         mediantot  = ap_round_ms(mediantot);
+        /*The real one*/
         maxcon     = ap_round_ms(maxcon);
+
+        /*Added by Sara*/
+        maxConnection = ap_round_ms(maxConnection);
+
         maxd       = ap_round_ms(maxd);
         maxwait    = ap_round_ms(maxwait);
         maxtot     = ap_round_ms(maxtot);
@@ -1151,9 +1166,9 @@ static void output_results(int sig)
 #define CONF_FMT_STRING "%5" APR_TIME_T_FMT " %4" APR_TIME_T_FMT " %5.1f %6" APR_TIME_T_FMT " %7" APR_TIME_T_FMT "\n"
             printf("              min  mean[+/-sd] median   max\n");
             printf("Connect:   " CONF_FMT_STRING,
-                   /*mincon* /*Commented by Sara*/ minConnection, meancon, sdcon, mediancon, maxcon);
+                   /*mincon* /*Commented by Sara*/ minConnection, meancon, sdcon, mediancon, /*maxcon*/ maxConnection);
 
-            /*Added by Sara to compare the real mincon and the the one we developed*/
+            /*Copied by Sara to compare the real mincon and maxcon the the one we calculated*/
             printf("Connect Real:    " CONF_FMT_STRING,
                    mincon, meancon, sdcon, mediancon, maxcon);
             printf("Processing: " CONF_FMT_STRING,
@@ -1161,14 +1176,15 @@ static void output_results(int sig)
 
             printf("Waiting:   " CONF_FMT_STRING,
                    /*minwait*/ /* Commented by Sara*/minWait, meanwait, sdwait, medianwait, maxwait);
-
+            
+            /* Copied by Sara to compare the calculated min wait with the real one*/
             printf("Waiting Real:    " CONF_FMT_STRING,
                    minwait, meanwait, sdwait, medianwait, maxwait);
 
 
             printf("Total:      " CONF_FMT_STRING,
                    /*mintot*/ /*Commented by Sara*/minTotal, meantot, sdtot, mediantot, maxtot);
-            /*Added by Sara */
+            /*Copied by Sara to compare the calculated total time with the real one */
             printf("Total Real:      " CONF_FMT_STRING,
                    mintot, meantot, sdtot, mediantot, maxtot);       
 #undef CONF_FMT_STRING
@@ -1556,6 +1572,8 @@ static void close_connection(struct connection * c)
             minConnection = getMinCon(s);
             minWait = getMinWait(s);
             minTotal = getMinTotal(s);
+            
+            maxConnection = getMaxCon(s);
             if (heartbeatres && !(done % heartbeatres)) {
                 fprintf(stderr, "Completed %d requests\n", done);
                 fflush(stderr);
