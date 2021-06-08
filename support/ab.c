@@ -351,9 +351,11 @@ int err_response = 0;      /* requests with invalid or non-200 response */
 
 apr_interval_time_t minConnection = AB_MAX; /*This global minimum connection time is added by Sara to keep track of min connection online*/
 apr_interval_time_t minWait = AB_MAX; /*This global minimum waiting time is added by Sara to keep track of min waiting online*/
-apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added by Sara to keep track of min waiting online*/
+apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added by Sara to keep track of min total online*/
 
-apr_interval_time_t maxConnection = 0;
+apr_interval_time_t maxConnection = 0;  /*This global minimum total time is added by Sara to keep track of max connection online*/
+apr_interval_time_t maxWait = 0;        /*This global minimum total time is added by Sara to keep track of max waiting time online*/
+
 
 #ifdef USE_SSL
 int is_ssl;
@@ -915,6 +917,13 @@ static apr_interval_time_t getMaxCon(struct  data* currentReq)
     return maxConnection;
 };
 
+/*This method is added by Sara to calculate the maximum  waiting time without stats (online)*/
+static apr_interval_time_t getMaxWait(struct data *currentReq)
+{
+    maxWait = ap_max(maxWait, currentReq->waittime);
+    return maxWait;
+}
+
 /* --------------------------------------------------------- */
 
 /* calculate and output results */
@@ -1122,24 +1131,18 @@ static void output_results(int sig)
          * Reduce stats from apr time to milliseconds
          */
 
-        /*The real one*/ 
-        mincon     = ap_round_ms(mincon);
         /*Added by Sara*/
         minConnection = ap_round_ms(minConnection);
+        minWait = ap_round_ms(minWait);
+        minTotal = ap_double_ms(minTotal);
+        /* minProcessing has to be calculated */
 
+        /*The real ones*/
+        mincon     = ap_round_ms(mincon);
+        mintot     = ap_round_ms(mintot);
+        minwait    = ap_round_ms(minwait);
         mind       = ap_round_ms(mind);
 
-        /*Added by Sara*/
-        minWait = ap_round_ms(minWait);
-
-        /*The real one*/
-        minwait    = ap_round_ms(minwait);
-        
-        /*Added by Sara*/
-        minTotal = ap_double_ms(minTotal);
-
-        /*The real one*/
-        mintot     = ap_round_ms(mintot);
         meancon    = ap_round_ms(meancon);
         meand      = ap_round_ms(meand);
         meanwait   = ap_round_ms(meanwait);
@@ -1148,14 +1151,16 @@ static void output_results(int sig)
         mediand    = ap_round_ms(mediand);
         medianwait = ap_round_ms(medianwait);
         mediantot  = ap_round_ms(mediantot);
-        /*The real one*/
+
+        /*The real ones*/
         maxcon     = ap_round_ms(maxcon);
+        maxwait    = ap_round_ms(maxwait);
 
         /*Added by Sara*/
         maxConnection = ap_round_ms(maxConnection);
+        maxWait = ap_round_ms(maxWait);
 
         maxd       = ap_round_ms(maxd);
-        maxwait    = ap_round_ms(maxwait);
         maxtot     = ap_round_ms(maxtot);
         sdcon      = ap_double_ms(sdcon);
         sdd        = ap_double_ms(sdd);
@@ -1175,9 +1180,9 @@ static void output_results(int sig)
                    mind, meand, sdd, mediand, maxd);
 
             printf("Waiting:   " CONF_FMT_STRING,
-                   /*minwait*/ /* Commented by Sara*/minWait, meanwait, sdwait, medianwait, maxwait);
+                   /*minwait*/ /* Commented by Sara*/minWait, meanwait, sdwait, medianwait, /*maxwait*/ maxWait);
             
-            /* Copied by Sara to compare the calculated min wait with the real one*/
+            /* Copied by Sara to compare the calculated min and max wait with the real one*/
             printf("Waiting Real:    " CONF_FMT_STRING,
                    minwait, meanwait, sdwait, medianwait, maxwait);
 
@@ -1574,6 +1579,8 @@ static void close_connection(struct connection * c)
             minTotal = getMinTotal(s);
             
             maxConnection = getMaxCon(s);
+            maxWait = getMaxWait(s);
+
             if (heartbeatres && !(done % heartbeatres)) {
                 fprintf(stderr, "Completed %d requests\n", done);
                 fflush(stderr);
