@@ -352,6 +352,8 @@ int err_response = 0;      /* requests with invalid or non-200 response */
 apr_interval_time_t minConnection = AB_MAX; /*This global minimum connection time is added by Sara to keep track of min connection online*/
 apr_interval_time_t minWait = AB_MAX; /*This global minimum waiting time is added by Sara to keep track of min waiting online*/
 apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added by Sara to keep track of min total online*/
+apr_interval_time_t minProcessing = AB_MAX;  /*This global minimum processing time is added by Sara to keep track of min waiting online*/ 
+
 
 apr_interval_time_t maxConnection = 0;  /*This global minimum total time is added by Sara to keep track of max connection online*/
 apr_interval_time_t maxWait = 0;        /*This global minimum total time is added by Sara to keep track of max waiting time online*/
@@ -912,6 +914,14 @@ static apr_interval_time_t getMinTotal(struct data *currentReq)
     return minTotal;
 }
 
+/*This method is added by Sara to calculate the minimum processing time without stats (online)*/
+static apr_interval_time_t getMinProcessing (struct data *currentReq)
+{
+    minProcessing = ap_min(minProcessing, currentReq->time - currentReq->ctime);
+    return minProcessing;
+}
+
+
 /*This method is added by Sara to calculate the maximum connection time without stats (online)*/
 static apr_interval_time_t getMaxCon(struct  data* currentReq)
 {
@@ -1064,7 +1074,7 @@ static void output_results(int sig)
             struct data *s = &stats[i];
             mincon = ap_min(mincon, s->ctime);
             mintot = ap_min(mintot, s->time);
-            mind = ap_min(mind, s->time - s->ctime);    /*Min processing should still be calculated online by Sara*/
+            mind = ap_min(mind, s->time - s->ctime);    
             minwait = ap_min(minwait, s->waittime);
 
             maxcon = ap_max(maxcon, s->ctime);
@@ -1144,7 +1154,8 @@ static void output_results(int sig)
         minConnection = ap_round_ms(minConnection);
         minWait = ap_round_ms(minWait);
         minTotal = ap_double_ms(minTotal);
-        /* minProcessing has to be calculated */
+        minProcessing = ap_double_ms(minProcessing);
+        
 
         /*The real ones*/
         mincon     = ap_round_ms(mincon);
@@ -1172,7 +1183,7 @@ static void output_results(int sig)
         maxConnection = ap_round_ms(maxConnection);
         maxWait = ap_round_ms(maxWait);
         maxTotal = ap_round_ms(maxTotal);
-        /* max Proessing time must be yet calculated */
+       
         
         
         sdcon      = ap_double_ms(sdcon);
@@ -1189,7 +1200,12 @@ static void output_results(int sig)
             /*Copied by Sara to compare the real mincon and maxcon the the one we calculated*/
             printf("Connect Real:    " CONF_FMT_STRING,
                    mincon, meancon, sdcon, mediancon, maxcon);
+
             printf("Processing: " CONF_FMT_STRING,
+                   /*mind*/ minProcessing, meand, sdd, mediand, maxd);
+
+            /*Copied by Sara to compare the real mind and the one we calculated, mind = minPrcessing*/
+            printf("Processing Real: " CONF_FMT_STRING,
                    mind, meand, sdd, mediand, maxd);
 
             printf("Waiting:   " CONF_FMT_STRING,
@@ -1593,6 +1609,7 @@ static void close_connection(struct connection * c)
             minConnection = getMinCon(s);
             minWait = getMinWait(s);
             minTotal = getMinTotal(s);
+            minProcessing = getMinProcessing(s);
             
             maxConnection = getMaxCon(s);
             maxWait = getMaxWait(s);
