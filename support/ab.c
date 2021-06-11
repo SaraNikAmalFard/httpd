@@ -908,18 +908,18 @@ static apr_interval_time_t getMinWait(struct data *currentReq)
     return minWait;
 }
 
-/*This method is added by Sara to calculate the minimum total time without stats (online)*/
-static apr_interval_time_t getMinTotal(struct data *currentReq)
-{
-    minTotal = ap_min(minTotal, currentReq->time);
-    return minTotal;
-}
-
 /*This method is added by Sara to calculate the minimum processing time without stats (online)*/
 static apr_interval_time_t getMinProcessing (struct data *currentReq)
 {
     minProcessing = ap_min(minProcessing, currentReq->time - currentReq->ctime);
     return minProcessing;
+}
+
+/*This method is added by Sara to calculate the minimum total time without stats (online)*/
+static apr_interval_time_t getMinTotal(struct data *currentReq)
+{
+    minTotal = ap_min(minTotal, currentReq->time);
+    return minTotal;
 }
 
 
@@ -937,13 +937,6 @@ static apr_interval_time_t getMaxWait(struct data *currentReq)
     return maxWait;
 }
 
-/*This method is added by Sara to calculate the maximum total time without stats (online)*/
-static apr_interval_time_t getMaxTotal(struct data *currentReq)
-{
-    maxTotal = ap_max(maxTotal, currentReq->time);
-    return maxTotal;
-}
-
 /*This method is added by Sara to calculate the maximum processing time without stats (online)*/
 static apr_interval_time_t getMAxProcessing(struct  data *currentReq)
 {
@@ -952,7 +945,12 @@ static apr_interval_time_t getMAxProcessing(struct  data *currentReq)
 }
 
 
-
+/*This method is added by Sara to calculate the maximum total time without stats (online)*/
+static apr_interval_time_t getMaxTotal(struct data *currentReq)
+{
+    maxTotal = ap_max(maxTotal, currentReq->time);
+    return maxTotal;
+}
 
 
 /* --------------------------------------------------------- */
@@ -1165,16 +1163,16 @@ static void output_results(int sig)
         /*Added by Sara*/
         minConnection = ap_round_ms(minConnection);
         minWait = ap_round_ms(minWait);
-        minTotal = ap_double_ms(minTotal);
-        minProcessing = ap_double_ms(minProcessing);
+        minProcessing = ap_round_ms(minProcessing);
+        minTotal = ap_round_ms(minTotal);
         
 
         /*The real ones*/
         mincon     = ap_round_ms(mincon);
-        mintot     = ap_round_ms(mintot);
         minwait    = ap_round_ms(minwait);
         mind       = ap_round_ms(mind);
-
+        mintot     = ap_round_ms(mintot);
+        
         meancon    = ap_round_ms(meancon);
         meand      = ap_round_ms(meand);
         meanwait   = ap_round_ms(meanwait);
@@ -1194,11 +1192,10 @@ static void output_results(int sig)
         /*Added by Sara*/
         maxConnection = ap_round_ms(maxConnection);
         maxWait = ap_round_ms(maxWait);
+        maxProcessing = ap_round_ms(maxProcessing);
         maxTotal = ap_round_ms(maxTotal);
-        maxProcessing = ap_double_ms(maxProcessing);
-       
         
-        
+    
         sdcon      = ap_double_ms(sdcon);
         sdd        = ap_double_ms(sdd);
         sdwait     = ap_double_ms(sdwait);
@@ -1617,17 +1614,19 @@ static void close_connection(struct connection * c)
             s->time      = ap_max(0, c->done - c->start);
             s->waittime  = ap_max(0, c->beginread - c->endwrite);
 
-            /*Calling getMinCoonection and getMinWait methods in close connection method, not sure if this is the correct place yet!*/
+            /*Calling getMinConnection and getMinWait methods in close connection method, not sure if this is the correct place yet!*/
             /* Added by Sara */
             minConnection = getMinCon(s);
             minWait = getMinWait(s);
-            minTotal = getMinTotal(s);
             minProcessing = getMinProcessing(s);
+            minTotal = getMinTotal(s);
+            
             
             maxConnection = getMaxCon(s);
             maxWait = getMaxWait(s);
-            maxTotal = getMaxTotal(s);
             maxProcessing = getMAxProcessing(s);
+            maxTotal = getMaxTotal(s);
+            
 
             if (heartbeatres && !(done % heartbeatres)) {
                 fprintf(stderr, "Completed %d requests\n", done);
