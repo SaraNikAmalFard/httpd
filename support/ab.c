@@ -366,7 +366,11 @@ apr_time_t sumOfWaitingTimes = 0;       /*Keeping track of sum of all waiting ti
 apr_time_t sumOfProcessingTimes = 0;    /*Keeping track of sum of all processing times for all requests, to use later for calculating mean of processing time*/
 apr_time_t sumOfTotalTimes = 0;         /*Keeping track of sum of all total times for all requests, to use later for calculating mean of total time*/
 
-apr_time_t meanConnection;
+apr_time_t meanConnection = 0;      /* Global variable to hold the mean of all connection times */
+apr_time_t meanWaiting = 0;         /* Global variable to hold the mean of all connection times */
+apr_time_t meanTotal = 0;           /* Global variable to hold the mean of all connection times */
+
+
 
 
 
@@ -1209,6 +1213,8 @@ static void output_results(int sig)
 
         /*Calculated by  Sara*/
         meanConnection = ap_round_ms(meanConnection);
+        meanWaiting = ap_round_ms(meanWaiting);
+        meanTotal = ap_round_ms (meanTotal);
         
     
         sdcon      = ap_double_ms(sdcon);
@@ -1234,7 +1240,7 @@ static void output_results(int sig)
                    mind, meand, sdd, mediand, maxd);
 
             printf("Waiting:   " CONF_FMT_STRING,
-                   /*minwait*/ /* Commented by Sara*/minWait, meanwait, sdwait, medianwait, /*maxwait*/ maxWait);
+                   /*minwait*/ /* Commented by Sara*/minWait, /*meanwait*/ meanWaiting, sdwait, medianwait, /*maxwait*/ maxWait);
             
             /* Copied by Sara to compare the calculated min and max wait with the real one*/
             printf("Waiting Real:    " CONF_FMT_STRING,
@@ -1242,7 +1248,7 @@ static void output_results(int sig)
 
 
             printf("Total:      " CONF_FMT_STRING,
-                   /*mintot*/ /*Commented by Sara*/minTotal, meantot, sdtot, mediantot, /*maxtot*/ maxTotal);
+                   /*mintot*/ /*Commented by Sara*/minTotal, /*meantot*/ meanTotal, sdtot, mediantot, /*maxtot*/ maxTotal);
 
             /*Copied by Sara to compare the calculated total time with the real min and max total */
             printf("Total Real:      " CONF_FMT_STRING,
@@ -1641,10 +1647,13 @@ static void close_connection(struct connection * c)
             maxProcessing = getMAxProcessing(s);
             maxTotal = getMaxTotal(s);
             
+            if(done > 0)
+            {
+               meanConnection = sumOfConnectionTimes/done;
+               meanWaiting = sumOfWaitingTimes/done;
+               meanTotal = sumOfTotalTimes/done;
+            }
             
-            meanConnection = sumOfConnectionTimes/done;
-            
-
             if (heartbeatres && !(done % heartbeatres)) {
                 fprintf(stderr, "Completed %d requests\n", done);
                 fflush(stderr);
