@@ -349,16 +349,24 @@ int err_recv = 0;          /* requests failed due to broken read */
 int err_except = 0;        /* requests failed due to exception */
 int err_response = 0;      /* requests with invalid or non-200 response */
 
+
 apr_interval_time_t minConnection = AB_MAX; /*This global minimum connection time is added by Sara to keep track of min connection online*/
 apr_interval_time_t minWait = AB_MAX; /*This global minimum waiting time is added by Sara to keep track of min waiting online*/
 apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added by Sara to keep track of min total online*/
 apr_interval_time_t minProcessing = AB_MAX;  /*This global minimum processing time is added by Sara to keep track of min waiting online*/ 
 
 
-apr_interval_time_t maxConnection = 0;  /*This global maximum total time is added by Sara to keep track of max connection online*/
-apr_interval_time_t maxWait = 0;        /*This global maximum total time is added by Sara to keep track of max waiting time online*/
-apr_interval_time_t maxTotal = 0;       /*This global maximum total time is added by Sara to keep track of max total time online*/
+apr_interval_time_t maxConnection = 0;   /*This global maximum total time is added by Sara to keep track of max connection online*/
+apr_interval_time_t maxWait = 0;         /*This global maximum total time is added by Sara to keep track of max waiting time online*/
+apr_interval_time_t maxTotal = 0;        /*This global maximum total time is added by Sara to keep track of max total time online*/
 apr_interval_time_t maxProcessing = 0;   /*This global maximum total time is added by Sara to keep track of max processing online*/
+
+apr_time_t sumOfConnectionTimes = 0;    /*Keeping track of sum of all connection times for all requests, to use later for calculating mean of connection time*/
+apr_time_t sumOfWaitingTimes = 0;       /*Keeping track of sum of all waiting times for all requests, to use later for calculating mean of waiting time*/
+apr_time_t sumOfProcessingTimes = 0;    /*Keeping track of sum of all processing times for all requests, to use later for calculating mean of processing time*/
+apr_time_t sumOfTotalTimes = 0;         /*Keeping track of sum of all total times for all requests, to use later for calculating mean of total time*/
+
+apr_time_t meanConnection;
 
 
 
@@ -895,8 +903,9 @@ static void write_request(struct connection * c)
 }
 
 /* This method is added by Sara to calculate the minimum time of connection without stats (online)*/
-static apr_interval_time_t getMinCon(struct data *currentReq)
+static apr_interval_time_t getMinConnection(struct data *currentReq)
 {
+    sumOfConnectionTimes += currentReq->ctime;
     minConnection = ap_min(minConnection,currentReq->ctime);
     return minConnection;
 }
@@ -904,6 +913,7 @@ static apr_interval_time_t getMinCon(struct data *currentReq)
 /*This method is added by Sara to calculate the minimum waiting time without stats (online)*/
 static apr_interval_time_t getMinWait(struct data *currentReq)
 {
+    sumOfWaitingTimes += currentReq->waittime;
     minWait = ap_min(minWait,currentReq->waittime);
     return minWait;
 }
@@ -911,6 +921,7 @@ static apr_interval_time_t getMinWait(struct data *currentReq)
 /*This method is added by Sara to calculate the minimum processing time without stats (online)*/
 static apr_interval_time_t getMinProcessing (struct data *currentReq)
 {
+    sumOfProcessingTimes += currentReq->time - currentReq->ctime;
     minProcessing = ap_min(minProcessing, currentReq->time - currentReq->ctime);
     return minProcessing;
 }
@@ -918,13 +929,14 @@ static apr_interval_time_t getMinProcessing (struct data *currentReq)
 /*This method is added by Sara to calculate the minimum total time without stats (online)*/
 static apr_interval_time_t getMinTotal(struct data *currentReq)
 {
+    sumOfTotalTimes += currentReq->time;
     minTotal = ap_min(minTotal, currentReq->time);
     return minTotal;
 }
 
 
 /*This method is added by Sara to calculate the maximum connection time without stats (online)*/
-static apr_interval_time_t getMaxCon(struct  data* currentReq)
+static apr_interval_time_t getMaxConnection(struct  data* currentReq)
 {
     maxConnection = ap_max(maxConnection, currentReq->ctime);
     return maxConnection;
@@ -1173,6 +1185,7 @@ static void output_results(int sig)
         mind       = ap_round_ms(mind);
         mintot     = ap_round_ms(mintot);
         
+        /*The real ones*/
         meancon    = ap_round_ms(meancon);
         meand      = ap_round_ms(meand);
         meanwait   = ap_round_ms(meanwait);
@@ -1188,12 +1201,14 @@ static void output_results(int sig)
         maxd       = ap_round_ms(maxd);
         maxtot     = ap_round_ms(maxtot);
 
-
         /*Added by Sara*/
         maxConnection = ap_round_ms(maxConnection);
         maxWait = ap_round_ms(maxWait);
         maxProcessing = ap_round_ms(maxProcessing);
         maxTotal = ap_round_ms(maxTotal);
+
+        /*Calculated by  Sara*/
+        meanConnection = ap_round_ms(meanConnection);
         
     
         sdcon      = ap_double_ms(sdcon);
@@ -1205,7 +1220,7 @@ static void output_results(int sig)
 #define CONF_FMT_STRING "%5" APR_TIME_T_FMT " %4" APR_TIME_T_FMT " %5.1f %6" APR_TIME_T_FMT " %7" APR_TIME_T_FMT "\n"
             printf("              min  mean[+/-sd] median   max\n");
             printf("Connect:   " CONF_FMT_STRING,
-                   /*mincon* /*Commented by Sara*/ minConnection, meancon, sdcon, mediancon, /*maxcon*/ maxConnection);
+                   /*mincon* /*Commented by Sara*/ minConnection, /*meancon*/ meanConnection, sdcon, mediancon, /*maxcon*/ maxConnection);
 
             /*Copied by Sara to compare the real mincon and maxcon the the one we calculated*/
             printf("Connect Real:    " CONF_FMT_STRING,
@@ -1616,16 +1631,18 @@ static void close_connection(struct connection * c)
 
             /*Calling getMinConnection and getMinWait methods in close connection method, not sure if this is the correct place yet!*/
             /* Added by Sara */
-            minConnection = getMinCon(s);
+            minConnection = getMinConnection(s);
             minWait = getMinWait(s);
             minProcessing = getMinProcessing(s);
             minTotal = getMinTotal(s);
             
-            
-            maxConnection = getMaxCon(s);
+            maxConnection = getMaxConnection(s);
             maxWait = getMaxWait(s);
             maxProcessing = getMAxProcessing(s);
             maxTotal = getMaxTotal(s);
+            
+            
+            meanConnection = sumOfConnectionTimes/done;
             
 
             if (heartbeatres && !(done % heartbeatres)) {
