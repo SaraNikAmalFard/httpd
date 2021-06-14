@@ -367,8 +367,9 @@ apr_time_t sumOfProcessingTimes = 0;    /*Keeping track of sum of all processing
 apr_time_t sumOfTotalTimes = 0;         /*Keeping track of sum of all total times for all requests, to use later for calculating mean of total time*/
 
 apr_time_t meanConnection = 0;      /* Global variable to hold the mean of all connection times */
-apr_time_t meanWaiting = 0;         /* Global variable to hold the mean of all connection times */
-apr_time_t meanTotal = 0;           /* Global variable to hold the mean of all connection times */
+apr_time_t meanWaiting = 0;         /* Global variable to hold the mean of all waiting times */
+apr_time_t meanTotal = 0;           /* Global variable to hold the mean of all total times */
+apr_time_t meanProcessing = 0;       /* Global variable to hold the mean of all processing times */
 
 
 
@@ -1214,6 +1215,7 @@ static void output_results(int sig)
         /*Calculated by  Sara*/
         meanConnection = ap_round_ms(meanConnection);
         meanWaiting = ap_round_ms(meanWaiting);
+        meanProcessing = ap_round_ms(meanProcessing);
         meanTotal = ap_round_ms (meanTotal);
         
     
@@ -1233,7 +1235,7 @@ static void output_results(int sig)
                    mincon, meancon, sdcon, mediancon, maxcon);
 
             printf("Processing: " CONF_FMT_STRING,
-                   /*mind*/ minProcessing, meand, sdd, mediand, /*maxd*/ maxProcessing);
+                   /*mind*/ minProcessing, /*meand*/ meanProcessing, sdd, mediand, /*maxd*/ maxProcessing);
 
             /*Copied by Sara to compare the real mind and maxd with the ones we calculated, mind = minPrcessing*/
             printf("Processing Real: " CONF_FMT_STRING,
@@ -1651,6 +1653,7 @@ static void close_connection(struct connection * c)
             {
                meanConnection = sumOfConnectionTimes/done;
                meanWaiting = sumOfWaitingTimes/done;
+               meanProcessing = sumOfProcessingTimes/done;
                meanTotal = sumOfTotalTimes/done;
             }
             
