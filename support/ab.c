@@ -443,14 +443,21 @@ struct connection *con; /* connection array */
 struct data *stats;     /* data for each request */
 // struct data sara_data_global;
 
-// apr_interval_time_t *connectionTimeMarkers;  /* to hold first 5 connection
-// time observations */
+
 double p = 0.5; /*for median we need the %50 quantile which leads to p=0.5 */
+/* parameters needed to calculate the median of connection times */
 int n[5];       /*marker position*/
 double ns[5];   /*desired marker position*/
 double dns[5]; /* how the indexes should change regarding their desired position */
 double q[5]; /* marker heights */
 int count = 0;
+
+/* parameters needed to calculate the median of connection times */
+int nwait[5];       /*marker position*/
+double nswait[5];   /*desired marker position*/
+double dnswait[5]; /* how the indexes should change regarding their desired position */
+double qwait[5]; /* marker heights */
+int countwait = 0;
 
 apr_pool_t *cntxt;
 
@@ -491,16 +498,29 @@ static int getSign(int n) {
 }
 
 /* Method added by Sara to calculate the Parabolic formula */
-static double Parabolic(int i, double d) {
+/*static double Parabolic(int i, double d) {
   return q[i] +
          d / (n[i + 1] - n[i - 1]) *
              ((n[i] - n[i - 1] + d) * (q[i + 1] - q[i]) / (n[i + 1] - n[i]) +
               (n[i + 1] - n[i] - d) * (q[i] - q[i - 1]) / (n[i] - n[i - 1]));
+}*/
+
+/* Method added by Sara to calculate the Parabolic formula */
+static double Parabolic(int i, double d, double queue[]) {
+  return queue[i] +
+         d / (n[i + 1] - n[i - 1]) *
+             ((n[i] - n[i - 1] + d) * (queue[i + 1] - queue[i]) / (n[i + 1] - n[i]) +
+              (n[i + 1] - n[i] - d) * (queue[i] - queue[i - 1]) / (n[i] - n[i - 1]));
 }
 
 /* Method added by Sara to calculate the Linear formula */
-double Linear(int i, int d) {
+/*double Linear(int i, int d) {
   return q[i] + d * (q[i + d] - q[i]) / (n[i + d] - n[i]);
+}*/
+
+/* Method added by Sara to calculate the Linear formula */
+double Linear(int i, int d, double queue[]) {
+  return queue[i] + d * (queue[i + d] - queue[i]) / (n[i + d] - n[i]);
 }
 
 /* simple little function to write an APR error string and exit */
@@ -1023,7 +1043,7 @@ static int compradre(struct data *a, struct data *b) {
 }
 
 /* Added by Sara to compare times */
-static int compareConnectionTimes(double aTime,
+static int compareTimes(double aTime,
                                   double bTime) {
   if (aTime > bTime)
     return +1;
@@ -1065,7 +1085,7 @@ static void addConnectionTime(struct data *currentReq) {
     q[count++] = (double)currentReq->ctime;
     if (count == 5) {
       qsort(q, count, sizeof(double),
-            (int (*)(const void *, const void *))compareConnectionTimes);
+            (int (*)(const void *, const void *))compareTimes);
       for (int i = 0; i < 5; i++)
         n[i] = i;
 
@@ -1118,11 +1138,11 @@ static void addConnectionTime(struct data *currentReq) {
     double d = ns[i] - n[i];
     if (d >= 1 && n[i + 1] - n[i] > 1 || d <= -1 && n[i - 1] - n[i] < -1) {
       int dInt = getSign(d);
-      double qs = Parabolic(i, dInt);
+      double qs = Parabolic(i, dInt,q);
       if (q[i - 1] < qs && qs < q[i + 1])
         q[i] = qs;
       else
-        q[i] = Linear(i, dInt);
+        q[i] = Linear(i, dInt,q);
       n[i] += dInt;
     }
   }
@@ -1130,11 +1150,11 @@ static void addConnectionTime(struct data *currentReq) {
   count++;
 }
 
-/* Method added by Sara to get the %50 quantile - Median */
+/* Method added by Sara to get the third quantile - Median */
 double getQuantile() {
   if (count <= 5) {
     qsort(q, count, sizeof(double),
-          (int (*)(const void *, const void *))compareConnectionTimes);
+          (int (*)(const void *, const void *))compareTimes);
     int index = (int)round((count - 1) * p);
     return q[index];
   }
