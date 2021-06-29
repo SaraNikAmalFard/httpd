@@ -409,6 +409,9 @@ apr_time_t meanProcessing =
 apr_interval_time_t connectionTimesMedian =
     0; /* Global variable to hold the median value of cnnection times */
 
+apr_interval_time_t waitTimesMedian =
+    0; /* Global variable to hold the median value of wait times */
+
 #ifdef USE_SSL
 int is_ssl;
 SSL_CTX *ssl_ctx;
@@ -506,11 +509,11 @@ static int getSign(int n) {
 }*/
 
 /* Method added by Sara to calculate the Parabolic formula */
-static double Parabolic(int i, double d, double queue[]) {
+static double Parabolic(int i, double d, double queue[], int m[]) {
   return queue[i] +
-         d / (n[i + 1] - n[i - 1]) *
-             ((n[i] - n[i - 1] + d) * (queue[i + 1] - queue[i]) / (n[i + 1] - n[i]) +
-              (n[i + 1] - n[i] - d) * (queue[i] - queue[i - 1]) / (n[i] - n[i - 1]));
+         d / (m[i + 1] - m[i - 1]) *
+             ((m[i] - m[i - 1] + d) * (queue[i + 1] - queue[i]) / (m[i + 1] - m[i]) +
+              (m[i + 1] - m[i] - d) * (queue[i] - queue[i - 1]) / (m[i] - m[i - 1]));
 }
 
 /* Method added by Sara to calculate the Linear formula */
@@ -519,8 +522,8 @@ static double Parabolic(int i, double d, double queue[]) {
 }*/
 
 /* Method added by Sara to calculate the Linear formula */
-double Linear(int i, int d, double queue[]) {
-  return queue[i] + d * (queue[i + d] - queue[i]) / (n[i + d] - n[i]);
+double Linear(int i, int d, double queue[], int m[]) {
+  return queue[i] + d * (queue[i + d] - queue[i]) / (m[i + d] - m[i]);
 }
 
 /* simple little function to write an APR error string and exit */
@@ -1043,8 +1046,7 @@ static int compradre(struct data *a, struct data *b) {
 }
 
 /* Added by Sara to compare times */
-static int compareTimes(double aTime,
-                                  double bTime) {
+static int compareTimes(double aTime, double bTime) {
   if (aTime > bTime)
     return +1;
   if (aTime < bTime)
@@ -1079,7 +1081,7 @@ static int compwait(struct data *a, struct data *b) {
 }
 
 /* Method written by Sara to keep track of first five connection times and
- * initializing their positions */
+ * initializing their positions and add next upcoming observations*/
 static void addConnectionTime(struct data *currentReq) {
   if (count < 5) {
     q[count++] = (double)currentReq->ctime;
@@ -1138,11 +1140,11 @@ static void addConnectionTime(struct data *currentReq) {
     double d = ns[i] - n[i];
     if (d >= 1 && n[i + 1] - n[i] > 1 || d <= -1 && n[i - 1] - n[i] < -1) {
       int dInt = getSign(d);
-      double qs = Parabolic(i, dInt,q);
+      double qs = Parabolic(i, dInt,q,n);
       if (q[i - 1] < qs && qs < q[i + 1])
         q[i] = qs;
       else
-        q[i] = Linear(i, dInt,q);
+        q[i] = Linear(i, dInt,q,n);
       n[i] += dInt;
     }
   }
@@ -1150,7 +1152,7 @@ static void addConnectionTime(struct data *currentReq) {
   count++;
 }
 
-/* Method added by Sara to get the third quantile - Median */
+/* Method added by Sara to get the third quantile of connection times- Median */
 double getQuantile() {
   if (count <= 5) {
     qsort(q, count, sizeof(double),
@@ -1159,6 +1161,89 @@ double getQuantile() {
     return q[index];
   }
   return q[2];
+}
+
+/* Method added by Sara to get the third quantile of waiting times- Median */
+double getWaitingQuantile() {
+  if (countwait <= 5) {
+    qsort(qwait, countwait, sizeof(double),
+          (int (*)(const void *, const void *))compareTimes);
+    int index = (int)round((countwait - 1) * p);
+    return qwait[index];
+  }
+  return qwait[2];
+}
+
+/* Method written by Sara to keep track of first five waiting times and
+ * initializing their positions and add the next upcoming observations*/ 
+static void addWaitTime(struct data *currentReq) {
+  if (countwait < 5) {
+    qwait[countwait++] = (double)currentReq->waittime;
+    if (countwait == 5) {
+      qsort(qwait, countwait, sizeof(double),
+            (int (*)(const void *, const void *))compareTimes);
+      for (int i = 0; i < 5; i++)
+        nwait[i] = i;
+
+      nswait[0] = 0;
+      nswait[1] = 2 * p;
+      nswait[2] = 4 * p;
+      nswait[3] = 2 + 2 * p;
+      nswait[4] = 4;
+
+      dnswait[0] = 0;
+      dnswait[1] = p / 2;
+      dnswait[2] = p;
+      dnswait[3] = (1 + p) / 2;
+      dnswait[4] = 1;
+    }
+    return;
+  }
+
+  int k;
+  if ((double)currentReq->waittime < qwait[0]) {
+    qwait[0] = (double)currentReq->waittime;
+    k = 0;
+  }
+
+  else if ((double)currentReq->waittime < qwait[1])
+    k = 0;
+
+  else if ((double)currentReq->waittime < qwait[2])
+    k = 1;
+
+  else if ((double)currentReq->waittime < qwait[3])
+    k = 2;
+
+  else if ((double)currentReq->waittime < qwait[4])
+    k = 3;
+
+  else {
+    qwait[4] = (double)currentReq->waittime;
+    k = 3;
+  }
+
+  for (int i = k + 1; i < 5;
+       i++) // incrementing position of markers k+1 through 5
+    nwait[i]++;
+
+  for (int i = 0; i < 5; i++) // updating desired position
+    nswait[i] += dnswait[i];
+
+  for (int i = 1; i <= 3; i++) {
+    double d = nswait[i] - nwait[i];
+    if (d >= 1 && nwait[i + 1] - nwait[i] > 1 || d <= -1 && nwait[i - 1] - nwait[i] < -1) {
+      int dInt = getSign(d);
+      double qs = Parabolic(i, dInt,qwait,nwait);
+      if (qwait[i - 1] < qs && qs < qwait[i + 1])
+        qwait[i] = qs;
+      else
+        qwait[i] = Linear(i, dInt,qwait,nwait);
+      nwait[i] += dInt;
+    }
+  }
+
+  countwait++;
 }
 
 static void output_results_sara_joon(int sig) {
@@ -1357,13 +1442,11 @@ static void output_results(int sig) {
     meantot = ap_round_ms(meantot);
 
     /* The real ones */
-    //mediancon = ap_round_ms(mediancon);
+    //mediancon = ap_round_ms(mediancon);  /* not converting micro seconds to milliseconds to observe the exact difference*/
     mediand = ap_round_ms(mediand);
-    medianwait = ap_round_ms(medianwait);
+    //medianwait = ap_round_ms(medianwait);   /* not converting micro seconds to milliseconds to observe the exact difference*/
     mediantot = ap_round_ms(mediantot);
 
-    /* Calculated by Sara */
-    connectionTimesMedian = ap_round_ms(connectionTimesMedian);
 
     /*The real ones*/
     maxcon = ap_round_ms(maxcon);
@@ -1388,8 +1471,12 @@ static void output_results(int sig) {
     sdwait = ap_double_ms(sdwait);
     sdtot = ap_double_ms(sdtot);
     
+    /* Calculated by Sar */
     connectionTimesMedian = getQuantile(); // Calculating connection time median by Sara
     //connectionTimesMedian = ap_round_ms(connectionTimesMedian);
+    
+     /* Calculated by Sar */
+    waitTimesMedian = getWaitingQuantile(); // Calculating wait time median by Sara
 
     if (confidence) {
 #define CONF_FMT_STRING                                                        \
@@ -1417,7 +1504,7 @@ static void output_results(int sig) {
 
       printf("Waiting:   " CONF_FMT_STRING,
              /*minwait*/ /* Commented by Sara*/ minWait,
-             /*meanwait*/ meanWaiting, sdwait, medianwait, /*maxwait*/ maxWait);
+             /*meanwait*/ meanWaiting, sdwait, /*medianwait*/ waitTimesMedian, /*maxwait*/ maxWait);
 
       /* Copied by Sara to compare the calculated min and max wait with the real
        * one*/
@@ -1841,8 +1928,9 @@ static void close_connection(struct connection *c) {
         meanTotal = sumOfTotalTimes / done;
       }
 
-      /* method added by Sara */
+      /* methods added by Sara */
       addConnectionTime(&sara_data);
+      addWaitTime(&sara_data);
       
 
       if (heartbeatres && !(done % heartbeatres)) {
