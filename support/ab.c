@@ -1664,9 +1664,7 @@ static void output_results(int sig) {
     connectionTimesMedian = getQuantile(); // Calculating connection time median by Sara
     //connectionTimesMedian = ap_round_ms(connectionTimesMedian);
     processingTimesMedian = getProcessingQuantile(); // Calculating provessing time median by Sara
-     /* Calculated by Sara */
     waitTimesMedian = getWaitingQuantile(); // Calculating wait time median by Sara
-
     totalTimesMedian = getTotalQuantile(); // Calculating total time median by Sara
 
     
