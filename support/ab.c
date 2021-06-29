@@ -412,6 +412,14 @@ apr_interval_time_t connectionTimesMedian =
 apr_interval_time_t waitTimesMedian =
     0; /* Global variable to hold the median value of wait times */
 
+apr_interval_time_t processingTimesMedian =
+    0; /* Global variable to hold the median value of processing times */
+
+apr_interval_time_t totalTimesMedian =
+    0; /* Global variable to hold the median value of total times */
+
+
+
 #ifdef USE_SSL
 int is_ssl;
 SSL_CTX *ssl_ctx;
@@ -455,12 +463,26 @@ double dns[5]; /* how the indexes should change regarding their desired position
 double q[5]; /* marker heights */
 int count = 0;
 
-/* parameters needed to calculate the median of connection times */
+/* parameters needed to calculate the median of wait times */
 int nwait[5];       /*marker position*/
 double nswait[5];   /*desired marker position*/
 double dnswait[5]; /* how the indexes should change regarding their desired position */
 double qwait[5]; /* marker heights */
 int countwait = 0;
+
+/* parameters needed to calculate the median of processing times */
+int nprocessing[5];
+double nsprocessing[5];   /*desired marker position*/
+double dnsprocessing[5]; /* how the indexes should change regarding their desired position */
+double qprocessing[5]; /* marker heights */
+int countprocessing = 0;
+
+/* parameters needed to calculate the median of total times */
+int ntotal[5];
+double nstotal[5];   /*desired marker position*/
+double dnstotal[5]; /* how the indexes should change regarding their desired position */
+double qtotal[5]; /* marker heights */
+int counttotal = 0;
 
 apr_pool_t *cntxt;
 
@@ -1163,16 +1185,6 @@ double getQuantile() {
   return q[2];
 }
 
-/* Method added by Sara to get the third quantile of waiting times- Median */
-double getWaitingQuantile() {
-  if (countwait <= 5) {
-    qsort(qwait, countwait, sizeof(double),
-          (int (*)(const void *, const void *))compareTimes);
-    int index = (int)round((countwait - 1) * p);
-    return qwait[index];
-  }
-  return qwait[2];
-}
 
 /* Method written by Sara to keep track of first five waiting times and
  * initializing their positions and add the next upcoming observations*/ 
@@ -1244,6 +1256,183 @@ static void addWaitTime(struct data *currentReq) {
   }
 
   countwait++;
+}
+
+/* Method added by Sara to get the third quantile of waiting times- Median */
+double getWaitingQuantile() {
+  if (countwait <= 5) {
+    qsort(qwait, countwait, sizeof(double),
+          (int (*)(const void *, const void *))compareTimes);
+    int index = (int)round((countwait - 1) * p);
+    return qwait[index];
+  }
+  return qwait[2];
+}
+
+/* Method written by Sara to keep track of first five processing times and
+ * initializing their positions and add the next upcoming observations*/ 
+static void addProcessingTime(struct data *currentReq) {
+  if (countprocessing < 5) {
+    qprocessing[countprocessing++] = (double) (currentReq->time - currentReq->ctime);
+    if (countprocessing == 5) {
+      qsort(qprocessing, countprocessing, sizeof(double),
+            (int (*)(const void *, const void *))compareTimes);
+      for (int i = 0; i < 5; i++)
+        nprocessing[i] = i;
+
+      nsprocessing[0] = 0;
+      nsprocessing[1] = 2 * p;
+      nsprocessing[2] = 4 * p;
+      nsprocessing[3] = 2 + 2 * p;
+      nsprocessing[4] = 4;
+
+      dnsprocessing[0] = 0;
+      dnsprocessing[1] = p / 2;
+      dnsprocessing[2] = p;
+      dnsprocessing[3] = (1 + p) / 2;
+      dnsprocessing[4] = 1;
+    }
+    return;
+  }
+
+  int k;
+  if ((double) (currentReq->time - currentReq->ctime ) < qprocessing[0]) {
+    qprocessing[0] = (double)(currentReq->time - currentReq->ctime);
+    k = 0;
+  }
+
+  else if ((double)(currentReq->time - currentReq->ctime )< qprocessing[1])
+    k = 0;
+
+  else if ((double)(currentReq->time - currentReq->ctime) < qprocessing[2])
+    k = 1;
+
+  else if ((double)(currentReq->time - currentReq->ctime) < qprocessing[3])
+    k = 2;
+
+  else if ((double)(currentReq->time - currentReq->ctime) < qprocessing[4])
+    k = 3;
+
+  else {
+    qprocessing[4] = (double)(currentReq->time - currentReq->ctime);
+    k = 3;
+  }
+
+  for (int i = k + 1; i < 5;
+       i++) // incrementing position of markers k+1 through 5
+    nprocessing[i]++;
+
+  for (int i = 0; i < 5; i++) // updating desired position
+    nsprocessing[i] += dnsprocessing[i];
+
+  for (int i = 1; i <= 3; i++) {
+    double d = nsprocessing[i] - nprocessing[i];
+    if (d >= 1 && nprocessing[i + 1] - nprocessing[i] > 1 || d <= -1 && nprocessing[i - 1] - nprocessing[i] < -1) {
+      int dInt = getSign(d);
+      double qs = Parabolic(i, dInt,qprocessing,nprocessing);
+      if (qprocessing[i - 1] < qs && qs < qprocessing[i + 1])
+        qprocessing[i] = qs;
+      else
+        qwait[i] = Linear(i, dInt,qprocessing,nprocessing);
+      nprocessing[i] += dInt;
+    }
+  }
+
+  countprocessing++;
+}
+
+/* Method added by Sara to get the third quantile of processing times- Median */
+double getProcessingQuantile() {
+  if (countprocessing <= 5) {
+    qsort(qprocessing, countprocessing, sizeof(double),
+          (int (*)(const void *, const void *))compareTimes);
+    int index = (int)round((countprocessing - 1) * p);
+    return qprocessing[index];
+  }
+  return qprocessing[2];
+}
+
+/* Method written by Sara to keep track of first five total times and
+ * initializing their positions and add the next upcoming observations*/ 
+static void addTotalTime(struct data *currentReq) {
+  if (counttotal < 5) {
+    qtotal[counttotal++] = (double)currentReq->time;
+    if (counttotal == 5) {
+      qsort(qtotal, counttotal, sizeof(double),
+            (int (*)(const void *, const void *))compareTimes);
+      for (int i = 0; i < 5; i++)
+        ntotal[i] = i;
+
+      nstotal[0] = 0;
+      nstotal[1] = 2 * p;
+      nstotal[2] = 4 * p;
+      nstotal[3] = 2 + 2 * p;
+      nstotal[4] = 4;
+
+      dnstotal[0] = 0;
+      dnstotal[1] = p / 2;
+      dnstotal[2] = p;
+      dnstotal[3] = (1 + p) / 2;
+      dnstotal[4] = 1;
+    }
+    return;
+  }
+
+  int k;
+  if ((double)currentReq->time < qtotal[0]) {
+    qtotal[0] = (double)currentReq->time;
+    k = 0;
+  }
+
+  else if ((double)currentReq->time < qtotal[1])
+    k = 0;
+
+  else if ((double)currentReq->time < qtotal[2])
+    k = 1;
+
+  else if ((double)currentReq->time < qtotal[3])
+    k = 2;
+
+  else if ((double)currentReq->time < qtotal[4])
+    k = 3;
+
+  else {
+    qtotal[4] = (double)currentReq->time;
+    k = 3;
+  }
+
+  for (int i = k + 1; i < 5;
+       i++) // incrementing position of markers k+1 through 5
+    ntotal[i]++;
+
+  for (int i = 0; i < 5; i++) // updating desired position
+    nstotal[i] += dnstotal[i];
+
+  for (int i = 1; i <= 3; i++) {
+    double d = nstotal[i] - ntotal[i];
+    if (d >= 1 && ntotal[i + 1] - ntotal[i] > 1 || d <= -1 && ntotal[i - 1] - ntotal[i] < -1) {
+      int dInt = getSign(d);
+      double qs = Parabolic(i, dInt,qtotal,ntotal);
+      if (qtotal[i - 1] < qs && qs < qtotal[i + 1])
+        qtotal[i] = qs;
+      else
+        q[i] = Linear(i, dInt,qtotal,ntotal);
+      ntotal[i] += dInt;
+    }
+  }
+
+  counttotal++;
+}
+
+/* Method added by Sara to get the third quantile of total times- Median */
+double getTotalQuantile() {
+  if (counttotal <= 5) {
+    qsort(qtotal, counttotal, sizeof(double),
+          (int (*)(const void *, const void *))compareTimes);
+    int index = (int)round((counttotal - 1) * p);
+    return qtotal[index];
+  }
+  return qtotal[2];
 }
 
 static void output_results_sara_joon(int sig) {
@@ -1443,9 +1632,9 @@ static void output_results(int sig) {
 
     /* The real ones */
     //mediancon = ap_round_ms(mediancon);  /* not converting micro seconds to milliseconds to observe the exact difference*/
-    mediand = ap_round_ms(mediand);
+    //mediand = ap_round_ms(mediand);      /* not converting micro seconds to milliseconds to observe the exact difference*/
     //medianwait = ap_round_ms(medianwait);   /* not converting micro seconds to milliseconds to observe the exact difference*/
-    mediantot = ap_round_ms(mediantot);
+    //mediantot = ap_round_ms(mediantot);    /* not converting micro seconds to milliseconds to observe the exact difference*/
 
 
     /*The real ones*/
@@ -1471,12 +1660,20 @@ static void output_results(int sig) {
     sdwait = ap_double_ms(sdwait);
     sdtot = ap_double_ms(sdtot);
     
-    /* Calculated by Sar */
+    /* Calculated by Sara */
     connectionTimesMedian = getQuantile(); // Calculating connection time median by Sara
     //connectionTimesMedian = ap_round_ms(connectionTimesMedian);
-    
-     /* Calculated by Sar */
+    processingTimesMedian = getProcessingQuantile(); // Calculating provessing time median by Sara
+     /* Calculated by Sara */
     waitTimesMedian = getWaitingQuantile(); // Calculating wait time median by Sara
+
+    totalTimesMedian = getTotalQuantile(); // Calculating total time median by Sara
+
+    
+
+    
+
+    
 
     if (confidence) {
 #define CONF_FMT_STRING                                                        \
@@ -1494,7 +1691,7 @@ static void output_results(int sig) {
              mediancon, maxcon);
 
       printf("Processing: " CONF_FMT_STRING,
-             /*mind*/ minProcessing, /*meand*/ meanProcessing, sdd, mediand,
+             /*mind*/ minProcessing, /*meand*/ meanProcessing, sdd, /*mediand*/ processingTimesMedian,
              /*maxd*/ maxProcessing);
 
       /*Copied by Sara to compare the real mind and maxd with the ones we
@@ -1513,7 +1710,7 @@ static void output_results(int sig) {
 
       printf("Total:      " CONF_FMT_STRING,
              /*mintot*/ /*Commented by Sara*/ minTotal, /*meantot*/ meanTotal,
-             sdtot, mediantot, /*maxtot*/ maxTotal);
+             sdtot, /*mediantot*/ totalTimesMedian, /*maxtot*/ maxTotal);
 
       /*Copied by Sara to compare the calculated total time with the real min
        * and max total */
@@ -1930,9 +2127,11 @@ static void close_connection(struct connection *c) {
 
       /* methods added by Sara */
       addConnectionTime(&sara_data);
+      addProcessingTime(&sara_data);
       addWaitTime(&sara_data);
+      addTotalTime(&sara_data);
       
-
+      
       if (heartbeatres && !(done % heartbeatres)) {
         fprintf(stderr, "Completed %d requests\n", done);
         fflush(stderr);
