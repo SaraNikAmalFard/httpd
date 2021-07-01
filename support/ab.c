@@ -464,11 +464,11 @@ double q[5]; /* marker heights */
 int count = 0;
 
 /* parameters needed to calculate the median of wait times */
-int nwait[5];       /*marker position*/
+int nwait[5];        /*marker position*/
 double nswait[5];   /*desired marker position*/
 double dnswait[5]; /* how the indexes should change regarding their desired position */
 double qwait[5]; /* marker heights */
-int countwait = 0;
+int countwait = 0; 
 
 /* parameters needed to calculate the median of processing times */
 int nprocessing[5];
@@ -530,23 +530,66 @@ static int getSign(int n) {
               (n[i + 1] - n[i] - d) * (q[i] - q[i - 1]) / (n[i] - n[i - 1]));
 }*/
 
+static double Parabolic(int i, double d) {
+  return q[i] +
+         d / (n[i + 1] - n[i - 1]) *
+             ((n[i] - n[i - 1] + d) * (q[i + 1] - q[i]) / (n[i + 1] - n[i]) +
+              (n[i + 1] - n[i] - d) * (q[i] - q[i - 1]) / (n[i] - n[i - 1]));
+}
+
+static double ParabolicWait(int i, double d) {
+  return qwait[i] +
+         d / (nwait[i + 1] - nwait[i - 1]) *
+             ((nwait[i] - nwait[i - 1] + d) * (qwait[i + 1] - qwait[i]) / (nwait[i + 1] - nwait[i]) +
+              (nwait[i + 1] - nwait[i] - d) * (qwait[i] - qwait[i - 1]) / (nwait[i] - nwait[i - 1]));
+}
+
+static double ParabolicProcessing(int i, double d) {
+  return qprocessing[i] +
+         d / (nprocessing[i + 1] - nprocessing[i - 1]) *
+             ((nprocessing[i] - nprocessing[i - 1] + d) * (qprocessing[i + 1] - qprocessing[i]) / (nprocessing[i + 1] - nprocessing[i]) +
+              (nprocessing[i + 1] - nprocessing[i] - d) * (qprocessing[i] - qprocessing[i - 1]) / (nprocessing[i] - nprocessing[i - 1]));
+}
+
+static double ParabolicTotal(int i, double d) {
+  return qtotal[i] +
+         d / (ntotal[i + 1] - ntotal[i - 1]) *
+             ((ntotal[i] - ntotal[i - 1] + d) * (qtotal[i + 1] - qtotal[i]) / (ntotal[i + 1] - ntotal[i]) +
+              (ntotal[i + 1] - ntotal[i] - d) * (qtotal[i] - qtotal[i - 1]) / (ntotal[i] - ntotal[i - 1]));
+}
+
 /* Method added by Sara to calculate the Parabolic formula */
-static double Parabolic(int i, double d, double queue[], int m[]) {
+/*static double Parabolic(int i, double d, double queue[], int m[]) {
   return queue[i] +
          d / (m[i + 1] - m[i - 1]) *
              ((m[i] - m[i - 1] + d) * (queue[i + 1] - queue[i]) / (m[i + 1] - m[i]) +
               (m[i + 1] - m[i] - d) * (queue[i] - queue[i - 1]) / (m[i] - m[i - 1]));
-}
+}*/
 
 /* Method added by Sara to calculate the Linear formula */
 /*double Linear(int i, int d) {
   return q[i] + d * (q[i + d] - q[i]) / (n[i + d] - n[i]);
 }*/
 
-/* Method added by Sara to calculate the Linear formula */
-double Linear(int i, int d, double queue[], int m[]) {
-  return queue[i] + d * (queue[i + d] - queue[i]) / (m[i + d] - m[i]);
+double Linear(int i, int d) {
+  return q[i] + d * (q[i + d] - q[i]) / (n[i + d] - n[i]);
 }
+
+double LinearWait(int i, int d) {
+  return qwait[i] + d * (qwait[i + d] - qwait[i]) / (nwait[i + d] - nwait[i]);
+}
+
+double LinearProcessing(int i, int d) {
+  return qprocessing[i] + d * (qprocessing[i + d] - qprocessing[i]) / (nprocessing[i + d] - nprocessing[i]);
+}
+
+double LinearTotal(int i, int d) {
+  return qtotal[i] + d * (qtotal[i + d] - qtotal[i]) / (ntotal[i + d] - ntotal[i]);
+}
+/* Method added by Sara to calculate the Linear formula */
+/*double Linear(int i, int d, double queue[], int m[]) {
+  return queue[i] + d * (queue[i + d] - queue[i]) / (m[i + d] - m[i]);
+}*/
 
 /* simple little function to write an APR error string and exit */
 static void apr_err(const char *s, apr_status_t rv) {
@@ -1162,11 +1205,11 @@ static void addConnectionTime(struct data *currentReq) {
     double d = ns[i] - n[i];
     if (d >= 1 && n[i + 1] - n[i] > 1 || d <= -1 && n[i - 1] - n[i] < -1) {
       int dInt = getSign(d);
-      double qs = Parabolic(i, dInt,q,n);
+      double qs = Parabolic(i, dInt);
       if (q[i - 1] < qs && qs < q[i + 1])
         q[i] = qs;
       else
-        q[i] = Linear(i, dInt,q,n);
+        q[i] = Linear(i, dInt);
       n[i] += dInt;
     }
   }
@@ -1246,15 +1289,14 @@ static void addWaitTime(struct data *currentReq) {
     double d = nswait[i] - nwait[i];
     if (d >= 1 && nwait[i + 1] - nwait[i] > 1 || d <= -1 && nwait[i - 1] - nwait[i] < -1) {
       int dInt = getSign(d);
-      double qs = Parabolic(i, dInt,qwait,nwait);
+      double qs = ParabolicWait(i, dInt);
       if (qwait[i - 1] < qs && qs < qwait[i + 1])
         qwait[i] = qs;
       else
-        qwait[i] = Linear(i, dInt,qwait,nwait);
+        qwait[i] = LinearWait(i, dInt);
       nwait[i] += dInt;
     }
   }
-
   countwait++;
 }
 
@@ -1329,15 +1371,14 @@ static void addProcessingTime(struct data *currentReq) {
     double d = nsprocessing[i] - nprocessing[i];
     if (d >= 1 && nprocessing[i + 1] - nprocessing[i] > 1 || d <= -1 && nprocessing[i - 1] - nprocessing[i] < -1) {
       int dInt = getSign(d);
-      double qs = Parabolic(i, dInt,qprocessing,nprocessing);
+      double qs = ParabolicProcessing(i, dInt);
       if (qprocessing[i - 1] < qs && qs < qprocessing[i + 1])
         qprocessing[i] = qs;
       else
-        qwait[i] = Linear(i, dInt,qprocessing,nprocessing);
+        qwait[i] = LinearProcessing(i, dInt);
       nprocessing[i] += dInt;
     }
   }
-
   countprocessing++;
 }
 
@@ -1412,11 +1453,11 @@ static void addTotalTime(struct data *currentReq) {
     double d = nstotal[i] - ntotal[i];
     if (d >= 1 && ntotal[i + 1] - ntotal[i] > 1 || d <= -1 && ntotal[i - 1] - ntotal[i] < -1) {
       int dInt = getSign(d);
-      double qs = Parabolic(i, dInt,qtotal,ntotal);
+      double qs = ParabolicTotal(i, dInt);
       if (qtotal[i - 1] < qs && qs < qtotal[i + 1])
         qtotal[i] = qs;
       else
-        q[i] = Linear(i, dInt,qtotal,ntotal);
+        q[i] = LinearTotal(i, dInt);
       ntotal[i] += dInt;
     }
   }
@@ -1528,7 +1569,7 @@ static void output_results(int sig) {
 
     /* Stats is being used here too, the mechanism of the output result method
      * should be changed */
-    /*Commented by Sara */
+    /*Comment by Sara */
     for (i = 0; i < done; i++) {
       struct data *s = &stats[i];
       mincon = ap_min(mincon, s->ctime);
@@ -1631,10 +1672,10 @@ static void output_results(int sig) {
     meantot = ap_round_ms(meantot);
 
     /* The real ones */
-    //mediancon = ap_round_ms(mediancon);  /* not converting micro seconds to milliseconds to observe the exact difference*/
-    //mediand = ap_round_ms(mediand);      /* not converting micro seconds to milliseconds to observe the exact difference*/
-    //medianwait = ap_round_ms(medianwait);   /* not converting micro seconds to milliseconds to observe the exact difference*/
-    //mediantot = ap_round_ms(mediantot);    /* not converting micro seconds to milliseconds to observe the exact difference*/
+    mediancon = ap_round_ms(mediancon);  
+    mediand = ap_round_ms(mediand);      
+    medianwait = ap_round_ms(medianwait);    
+    mediantot = ap_round_ms(mediantot);    
 
 
     /*The real ones*/
@@ -1661,15 +1702,14 @@ static void output_results(int sig) {
     sdtot = ap_double_ms(sdtot);
     
     /* Calculated by Sara */
-    connectionTimesMedian = getQuantile(); // Calculating connection time median by Sara
-    //connectionTimesMedian = ap_round_ms(connectionTimesMedian);
-    processingTimesMedian = getProcessingQuantile(); // Calculating provessing time median by Sara
-    waitTimesMedian = getWaitingQuantile(); // Calculating wait time median by Sara
-    totalTimesMedian = getTotalQuantile(); // Calculating total time median by Sara
-
-    
-
-    
+    connectionTimesMedian = getQuantile(); 
+    connectionTimesMedian = ap_round_ms(connectionTimesMedian);
+    processingTimesMedian = getProcessingQuantile();
+    processingTimesMedian = ap_round_ms(processingTimesMedian);
+    waitTimesMedian = getWaitingQuantile(); 
+    waitTimesMedian = ap_round_ms(waitTimesMedian);
+    totalTimesMedian = getTotalQuantile();
+    totalTimesMedian = ap_round_ms(totalTimesMedian);
 
     
 
@@ -2107,19 +2147,19 @@ static void close_connection(struct connection *c) {
       sara_data.waittime = ap_max(0, c->beginread - c->endwrite);
 
       minConnection = getMinConnection(&sara_data);
-      minWait = getMinWait(&sara_data);
       minProcessing = getMinProcessing(&sara_data);
+      minWait = getMinWait(&sara_data);
       minTotal = getMinTotal(&sara_data);
 
       maxConnection = getMaxConnection(&sara_data);
-      maxWait = getMaxWait(&sara_data);
       maxProcessing = getMAxProcessing(&sara_data);
+      maxWait = getMaxWait(&sara_data);
       maxTotal = getMaxTotal(&sara_data);
 
       if (done > 0) {
         meanConnection = sumOfConnectionTimes / done;
-        meanWaiting = sumOfWaitingTimes / done;
         meanProcessing = sumOfProcessingTimes / done;
+        meanWaiting = sumOfWaitingTimes / done;
         meanTotal = sumOfTotalTimes / done;
       }
 
@@ -2128,7 +2168,6 @@ static void close_connection(struct connection *c) {
       addProcessingTime(&sara_data);
       addWaitTime(&sara_data);
       addTotalTime(&sara_data);
-      
       
       if (heartbeatres && !(done % heartbeatres)) {
         fprintf(stderr, "Completed %d requests\n", done);
