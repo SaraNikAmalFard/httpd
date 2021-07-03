@@ -419,7 +419,6 @@ apr_interval_time_t totalTimesMedian =
     0; /* Global variable to hold the median value of total times */
 
 
-
 #ifdef USE_SSL
 int is_ssl;
 SSL_CTX *ssl_ctx;
@@ -2111,6 +2110,7 @@ static void start_connect(struct connection *c) {
 /* close down connection and save stats */
 
 static void close_connection(struct connection *c) {
+  /* Added by Sara to replace stats */
   struct data sara_data;
 
   if (c->read == 0 && c->keepalive) {
@@ -2130,12 +2130,12 @@ static void close_connection(struct connection *c) {
     /* save out time */
     /*Here stats is being used, which needs to be eliminated, comment by Sara*/
     if (done < requests) {
-      struct data *s = &stats[done++];
+      struct data *s = &stats[done++]; 
       c->done = lasttime = apr_time_now();
       s->starttime = c->start;
       s->ctime = ap_max(0, c->connect - c->start);
       s->time = ap_max(0, c->done - c->start);
-      s->waittime = ap_max(0, c->beginread - c->endwrite);
+      s->waittime = ap_max(0, c->beginread - c->endwrite); 
 
   
       /*Calling getMinConnection and getMinWait methods in close connection
@@ -2201,6 +2201,7 @@ static void read_connection(struct connection *c) {
   char *part;
   char respcode[4]; /* 3 digits and null */
   int i;
+  struct data sara_data;  /* new modification by Sara to delete stats*/
 
   r = sizeof(buffer);
 read_more:
@@ -2417,8 +2418,9 @@ read_more:
       err_length++;
     }
 
-    /*Here also stats is being used, needs to be removed */ /*Comment by Sara */
+    /*Here also stats is being used, needs to be removed, Comment by Sara */
     if (done < requests) {
+    
       struct data *s = &stats[done++];
       doneka++;
 
@@ -2428,6 +2430,36 @@ read_more:
       s->ctime = ap_max(0, c->connect - c->start);
       s->time = ap_max(0, c->done - c->start);
       s->waittime = ap_max(0, c->beginread - c->endwrite);
+      
+      /* Adding the changes Alireza said to here for keep alive option */
+      sara_data.starttime = c->start;
+      sara_data.ctime = ap_max(0, c->connect - c->start);
+      sara_data.time = ap_max(0, c->done - c->start);
+      sara_data.waittime = ap_max(0, c->beginread - c->endwrite);
+
+      minConnection = getMinConnection(&sara_data);
+      minProcessing = getMinProcessing(&sara_data);
+      minWait = getMinWait(&sara_data);
+      minTotal = getMinTotal(&sara_data);
+
+      maxConnection = getMaxConnection(&sara_data);
+      maxProcessing = getMAxProcessing(&sara_data);
+      maxWait = getMaxWait(&sara_data);
+      maxTotal = getMaxTotal(&sara_data);
+
+      if (done > 0) {
+        meanConnection = sumOfConnectionTimes / done;
+        meanProcessing = sumOfProcessingTimes / done;
+        meanWaiting = sumOfWaitingTimes / done;
+        meanTotal = sumOfTotalTimes / done;
+      }
+
+      addConnectionTime(&sara_data);
+      addProcessingTime(&sara_data);
+      addWaitTime(&sara_data);
+      addTotalTime(&sara_data);
+      /* uo to here */
+
       if (heartbeatres && !(done % heartbeatres)) {
         fprintf(stderr, "Completed %d requests\n", done);
         fflush(stderr);
