@@ -358,65 +358,41 @@ int err_recv = 0;            /* requests failed due to broken read */
 int err_except = 0;          /* requests failed due to exception */
 int err_response = 0;        /* requests with invalid or non-200 response */
 
-apr_interval_time_t minConnection =
-    AB_MAX; /*This global minimum connection time is added by Sara to keep track
-               of min connection online*/
-apr_interval_time_t minWait =
-    AB_MAX; /*This global minimum waiting time is added by Sara to keep track of
-               min waiting online*/
-apr_interval_time_t minTotal =
-    AB_MAX; /*This global minimum total time is added by Sara to keep track of
-               min total online*/
-apr_interval_time_t minProcessing =
-    AB_MAX; /*This global minimum processing time is added by Sara to keep track
-               of min waiting online*/
+apr_interval_time_t minConnection = AB_MAX; /*This global minimum connection time is added by Sara to keep track of min connection online*/
+apr_interval_time_t minWait = AB_MAX; /*This global minimum waiting time is added by Sara to keep track min waiting online*/
+apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added by Sara to keep track of min total online*/
+apr_interval_time_t minProcessing = AB_MAX; /*This global minimum processing time is added by Sara to keep track of min waiting online*/
 
-apr_interval_time_t maxConnection =
-    0; /*This global maximum total time is added by Sara to keep track of max
-          connection online*/
-apr_interval_time_t maxWait =
-    0; /*This global maximum total time is added by Sara to keep track of max
-          waiting time online*/
-apr_interval_time_t maxTotal =
-    0; /*This global maximum total time is added by Sara to keep track of max
-          total time online*/
-apr_interval_time_t maxProcessing =
-    0; /*This global maximum total time is added by Sara to keep track of max
-          processing online*/
+apr_interval_time_t maxConnection = 0; /*This global maximum total time is added by Sara to keep track of max connection online*/
+apr_interval_time_t maxWait = 0; /*This global maximum total time is added by Sara to keep track of max waiting time online*/
+apr_interval_time_t maxTotal = 0; /*This global maximum total time is added by Sara to keep track of max total time online*/
+apr_interval_time_t maxProcessing = 0; /*This global maximum total time is added by Sara to keep track of max processing online*/
 
-apr_time_t sumOfConnectionTimes =
-    0; /*Keeping track of sum of all connection times for all requests, to use
-          later for calculating mean of connection time*/
-apr_time_t sumOfWaitingTimes =
-    0; /*Keeping track of sum of all waiting times for all requests, to use
-          later for calculating mean of waiting time*/
-apr_time_t sumOfProcessingTimes =
-    0; /*Keeping track of sum of all processing times for all requests, to use
-          later for calculating mean of processing time*/
-apr_time_t sumOfTotalTimes =
-    0; /*Keeping track of sum of all total times for all requests, to use later
-          for calculating mean of total time*/
+apr_time_t sumOfConnectionTimes = 0; /*Keeping track of sum of all connection times for all requests, to use later for calculating mean of connection time*/
+apr_time_t sumOfWaitingTimes = 0; /*Keeping track of sum of all waiting times for all requests, to use later for calculating mean of waiting time*/
+apr_time_t sumOfProcessingTimes = 0; /*Keeping track of sum of all processing times for all requests, to use later for calculating mean of processing time*/
+apr_time_t sumOfTotalTimes = 0; /*Keeping track of sum of all total times for all requests, to use later for calculating mean of total time*/
 
-apr_time_t meanConnection =
-    0; /* Global variable to hold the mean of all connection times */
-apr_time_t meanWaiting =
-    0; /* Global variable to hold the mean of all waiting times */
-apr_time_t meanTotal =
-    0; /* Global variable to hold the mean of all total times */
-apr_time_t meanProcessing =
-    0; /* Global variable to hold the mean of all processing times */
+apr_time_t meanConnection = 0; /* Global variable to hold the mean of all connection times */
+apr_time_t meanWaiting = 0; /* Global variable to hold the mean of all waiting times */
+apr_time_t meanTotal = 0; /* Global variable to hold the mean of all total times */
+apr_time_t meanProcessing = 0; /* Global variable to hold the mean of all processing times */
 
-apr_interval_time_t connectionTimesMedian =
-    0; /* Global variable to hold the median value of cnnection times */
+apr_interval_time_t connectionTimesMedian = 0; /* Global variable to hold the median value of cnnection times */
 
-apr_interval_time_t waitTimesMedian =
-    0; /* Global variable to hold the median value of wait times */
+apr_interval_time_t waitTimesMedian = 0; /* Global variable to hold the median value of wait times */
 
-apr_interval_time_t processingTimesMedian =
-    0; /* Global variable to hold the median value of processing times */
+apr_interval_time_t processingTimesMedian = 0; /* Global variable to hold the median value of processing times */
 
-apr_interval_time_t totalTimesMedian =
-    0; /* Global variable to hold the median value of total times */
+apr_interval_time_t totalTimesMedian = 0; /* Global variable to hold the median value of total times */
+
+double sumOfSquaredConnectionTimes = 0;  /* To hold the sum of sqaure of each connection time */
+double connectionTimesStandardDeviation = 0;
+
+double sumOfSquaredWaitTimes = 0; /* To hold the sum of sqaure of each wait time */
+double waitTimesStandardDeviation = 0;
+
+
 
 
 #ifdef USE_SSL
@@ -1041,6 +1017,7 @@ static void write_request(struct connection *c) {
  * without stats (online)*/
 static apr_interval_time_t getMinConnection(struct data *currentReq) {
   sumOfConnectionTimes += currentReq->ctime;
+  sumOfSquaredConnectionTimes += (double)currentReq->ctime * currentReq->ctime;
   minConnection = ap_min(minConnection, currentReq->ctime);
   return minConnection;
 }
@@ -1049,6 +1026,7 @@ static apr_interval_time_t getMinConnection(struct data *currentReq) {
  * stats (online)*/
 static apr_interval_time_t getMinWait(struct data *currentReq) {
   sumOfWaitingTimes += currentReq->waittime;
+  sumOfSquaredWaitTimes += (double)currentReq->waittime * currentReq->waittime;
   minWait = ap_min(minWait, currentReq->waittime);
   return minWait;
 }
@@ -1695,10 +1673,16 @@ static void output_results(int sig) {
     meanProcessing = ap_round_ms(meanProcessing);
     meanTotal = ap_round_ms(meanTotal);
 
+    /* Real ones */
     sdcon = ap_double_ms(sdcon);
     sdd = ap_double_ms(sdd);
     sdwait = ap_double_ms(sdwait);
     sdtot = ap_double_ms(sdtot);
+
+    //SD by Sara
+    connectionTimesStandardDeviation = ap_double_ms(connectionTimesStandardDeviation);
+    waitTimesStandardDeviation = ap_double_ms(waitTimesStandardDeviation);
+
     
     /* Calculated by Sara */
     connectionTimesMedian = getQuantile(); 
@@ -1719,7 +1703,7 @@ static void output_results(int sig) {
       printf("              min  mean[+/-sd] median   max\n");
       printf("Connect:   " CONF_FMT_STRING,
              /*mincon* /*Commented by Sara*/ minConnection,
-             /*meancon*/ meanConnection, sdcon,
+             /*meancon*/ meanConnection, /*sdcon*/ connectionTimesStandardDeviation,
              /*mediancon*/ connectionTimesMedian, /*maxcon*/ maxConnection);
 
       /*Copied by Sara to compare the real mincon and maxcon the the one we
@@ -1738,7 +1722,7 @@ static void output_results(int sig) {
 
       printf("Waiting:   " CONF_FMT_STRING,
              /*minwait*/ /* Commented by Sara*/ minWait,
-             /*meanwait*/ meanWaiting, sdwait, /*medianwait*/ waitTimesMedian, /*maxwait*/ maxWait);
+             /*meanwait*/ meanWaiting, /*sdwait*/ waitTimesStandardDeviation, /*medianwait*/ waitTimesMedian, /*maxwait*/ maxWait);
 
       /* Copied by Sara to compare the calculated min and max wait with the real
        * one*/
@@ -2156,11 +2140,16 @@ static void close_connection(struct connection *c) {
       maxWait = getMaxWait(&sara_data);
       maxTotal = getMaxTotal(&sara_data);
 
-      if (done > 0) {
+      if (done > 0) 
+      {
         meanConnection = sumOfConnectionTimes / done;
         meanProcessing = sumOfProcessingTimes / done;
         meanWaiting = sumOfWaitingTimes / done;
         meanTotal = sumOfTotalTimes / done;
+
+        /* Calculating standard deviation */
+        connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes/done) - ( (sumOfConnectionTimes/done) * (sumOfConnectionTimes/done)));
+        waitTimesStandardDeviation = sqrt((sumOfSquaredWaitTimes/done) - ((sumOfWaitingTimes/done) * (sumOfWaitingTimes/done)));
       }
 
       /* methods added by Sara */
