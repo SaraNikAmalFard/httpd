@@ -395,6 +395,9 @@ double waitTimesStandardDeviation = 0;
 double sumOfSquaredProcessingTimes = 0; /* To hold the sum of sqaure of each processing time */
 double processingTimesStandardDeviation = 0;
 
+double sumOfSquaredTotalTimes = 0; /* To hold the sum of sqaure of each total time */
+double totalTimesStandardDeviation = 0;
+
 
 
 
@@ -1047,6 +1050,7 @@ static apr_interval_time_t getMinProcessing(struct data *currentReq) {
  * (online)*/
 static apr_interval_time_t getMinTotal(struct data *currentReq) {
   sumOfTotalTimes += currentReq->time;
+  sumOfSquaredTotalTimes += (double) currentReq->time * currentReq->time;
   minTotal = ap_min(minTotal, currentReq->time);
   return minTotal;
 }
@@ -1687,6 +1691,7 @@ static void output_results(int sig) {
     connectionTimesStandardDeviation = ap_double_ms(connectionTimesStandardDeviation);
     waitTimesStandardDeviation = ap_double_ms(waitTimesStandardDeviation);
     processingTimesStandardDeviation = ap_double_ms(processingTimesStandardDeviation);
+    totalTimesStandardDeviation = ap_double_ms(totalTimesStandardDeviation);
 
     
     /* Calculated by Sara */
@@ -1736,7 +1741,7 @@ static void output_results(int sig) {
 
       printf("Total:      " CONF_FMT_STRING,
              /*mintot*/ /*Commented by Sara*/ minTotal, /*meantot*/ meanTotal,
-             sdtot, /*mediantot*/ totalTimesMedian, /*maxtot*/ maxTotal);
+             /*sdtot*/totalTimesStandardDeviation, /*mediantot*/ totalTimesMedian, /*maxtot*/ maxTotal);
 
       /*Copied by Sara to compare the calculated total time with the real min
        * and max total */
@@ -2156,6 +2161,7 @@ static void close_connection(struct connection *c) {
         connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes-((double)(sumOfConnectionTimes * sumOfConnectionTimes)/done))/(done-1));
         waitTimesStandardDeviation = sqrt((sumOfSquaredWaitTimes-((double)(sumOfWaitingTimes * sumOfWaitingTimes)/done))/(done-1));
         processingTimesStandardDeviation = sqrt((sumOfSquaredProcessingTimes - ((double)(sumOfProcessingTimes * sumOfProcessingTimes)/done))/(done-1));
+        totalTimesStandardDeviation = sqrt((sumOfSquaredTotalTimes - ((double)(sumOfTotalTimes * sumOfTotalTimes)/done))/(done-1));
       }
 
       /* methods added by Sara */
