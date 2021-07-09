@@ -2148,8 +2148,8 @@ static void close_connection(struct connection *c) {
         meanTotal = sumOfTotalTimes / done;
 
         /* Calculating standard deviation */
-        connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes/done) - ( (sumOfConnectionTimes/done) * (sumOfConnectionTimes/done)));
-        waitTimesStandardDeviation = sqrt((sumOfSquaredWaitTimes/done) - ((sumOfWaitingTimes/done) * (sumOfWaitingTimes/done)));
+        connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes-((double)(sumOfConnectionTimes * sumOfConnectionTimes)/done))/(done-1));
+        waitTimesStandardDeviation = sqrt((sumOfSquaredWaitTimes-((double)(sumOfWaitingTimes * sumOfWaitingTimes)/done))/(done-1));
       }
 
       /* methods added by Sara */
