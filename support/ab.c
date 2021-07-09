@@ -392,6 +392,9 @@ double connectionTimesStandardDeviation = 0;
 double sumOfSquaredWaitTimes = 0; /* To hold the sum of sqaure of each wait time */
 double waitTimesStandardDeviation = 0;
 
+double sumOfSquaredProcessingTimes = 0; /* To hold the sum of sqaure of each processing time */
+double processingTimesStandardDeviation = 0;
+
 
 
 
@@ -1035,6 +1038,7 @@ static apr_interval_time_t getMinWait(struct data *currentReq) {
  * stats (online)*/
 static apr_interval_time_t getMinProcessing(struct data *currentReq) {
   sumOfProcessingTimes += currentReq->time - currentReq->ctime;
+  sumOfSquaredProcessingTimes += (double)((currentReq->time - currentReq->ctime) * (currentReq->time - currentReq->ctime));
   minProcessing = ap_min(minProcessing, currentReq->time - currentReq->ctime);
   return minProcessing;
 }
@@ -1682,6 +1686,7 @@ static void output_results(int sig) {
     //SD by Sara
     connectionTimesStandardDeviation = ap_double_ms(connectionTimesStandardDeviation);
     waitTimesStandardDeviation = ap_double_ms(waitTimesStandardDeviation);
+    processingTimesStandardDeviation = ap_double_ms(processingTimesStandardDeviation);
 
     
     /* Calculated by Sara */
@@ -1712,7 +1717,7 @@ static void output_results(int sig) {
              mediancon, maxcon);
 
       printf("Processing: " CONF_FMT_STRING,
-             /*mind*/ minProcessing, /*meand*/ meanProcessing, sdd, /*mediand*/ processingTimesMedian,
+             /*mind*/ minProcessing, /*meand*/ meanProcessing, /*sdd*/processingTimesStandardDeviation, /*mediand*/ processingTimesMedian,
              /*maxd*/ maxProcessing);
 
       /*Copied by Sara to compare the real mind and maxd with the ones we
@@ -2150,6 +2155,7 @@ static void close_connection(struct connection *c) {
         /* Calculating standard deviation */
         connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes-((double)(sumOfConnectionTimes * sumOfConnectionTimes)/done))/(done-1));
         waitTimesStandardDeviation = sqrt((sumOfSquaredWaitTimes-((double)(sumOfWaitingTimes * sumOfWaitingTimes)/done))/(done-1));
+        processingTimesStandardDeviation = sqrt((sumOfSquaredProcessingTimes - ((double)(sumOfProcessingTimes * sumOfProcessingTimes)/done))/(done-1));
       }
 
       /* methods added by Sara */
