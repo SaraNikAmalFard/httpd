@@ -2453,6 +2453,12 @@ read_more:
         meanProcessing = sumOfProcessingTimes / done;
         meanWaiting = sumOfWaitingTimes / done;
         meanTotal = sumOfTotalTimes / done;
+
+        /* Calculating standard deviation */
+        connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes-((double)(sumOfConnectionTimes * sumOfConnectionTimes)/done))/(done-1));
+        waitTimesStandardDeviation = sqrt((sumOfSquaredWaitTimes-((double)(sumOfWaitingTimes * sumOfWaitingTimes)/done))/(done-1));
+        processingTimesStandardDeviation = sqrt((sumOfSquaredProcessingTimes - ((double)(sumOfProcessingTimes * sumOfProcessingTimes)/done))/(done-1));
+        totalTimesStandardDeviation = sqrt((sumOfSquaredTotalTimes - ((double)(sumOfTotalTimes * sumOfTotalTimes)/done))/(done-1));
       }
 
       addConnectionTime(&sara_data);
