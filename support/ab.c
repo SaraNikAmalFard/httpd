@@ -438,11 +438,11 @@ struct data *stats;     /* data for each request */
 
 double p = 0.5; /*for median we need the %50 quantile which leads to p=0.5 */
 /* parameters needed to calculate the median of connection times */
-int n[5];       /*marker position*/
-double ns[5];   /*desired marker position*/
-double dns[5]; /* how the indexes should change regarding their desired position */
-double q[5]; /* marker heights */
-int count = 0;
+int nconnection[5];       /*marker position*/
+double nsconnection[5];   /*desired marker position*/
+double dnsconnection[5]; /* how the indexes should change regarding their desired position */
+double qconnection[5]; /* marker heights */
+int countconnection = 0;
 
 /* parameters needed to calculate the median of wait times */
 int nwait[5];        /*marker position*/
@@ -464,6 +464,11 @@ double nstotal[5];   /*desired marker position*/
 double dnstotal[5]; /* how the indexes should change regarding their desired position */
 double qtotal[5]; /* marker heights */
 int counttotal = 0;
+
+double connectionMedianDoubleToTime = 0;
+double processingMedianDoubleToTime = 0;
+double waitingMedianDoubleToTime = 0;
+double totalMedianDoubleToTime = 0;
 
 apr_pool_t *cntxt;
 
@@ -511,11 +516,11 @@ static int getSign(int n) {
               (n[i + 1] - n[i] - d) * (q[i] - q[i - 1]) / (n[i] - n[i - 1]));
 }*/
 
-static double Parabolic(int i, double d) {
-  return q[i] +
-         d / (n[i + 1] - n[i - 1]) *
-             ((n[i] - n[i - 1] + d) * (q[i + 1] - q[i]) / (n[i + 1] - n[i]) +
-              (n[i + 1] - n[i] - d) * (q[i] - q[i - 1]) / (n[i] - n[i - 1]));
+static double ParabolicConnection(int i, double d) {
+  return qconnection[i] +
+         d / (nconnection[i + 1] - nconnection[i - 1]) *
+             ((nconnection[i] - nconnection[i - 1] + d) * (qconnection[i + 1] - qconnection[i]) / (nconnection[i + 1] - nconnection[i]) +
+              (nconnection[i + 1] - nconnection[i] - d) * (qconnection[i] - qconnection[i - 1]) / (nconnection[i] - nconnection[i - 1]));
 }
 
 static double ParabolicWait(int i, double d) {
@@ -552,8 +557,8 @@ static double ParabolicTotal(int i, double d) {
   return q[i] + d * (q[i + d] - q[i]) / (n[i + d] - n[i]);
 }*/
 
-double Linear(int i, int d) {
-  return q[i] + d * (q[i + d] - q[i]) / (n[i + d] - n[i]);
+double LinearConnection(int i, int d) {
+  return qconnection[i] + d * (qconnection[i + d] - qconnection[i]) / (nconnection[i + d] - nconnection[i]);
 }
 
 double LinearWait(int i, int d) {
@@ -1133,84 +1138,84 @@ static int compwait(struct data *a, struct data *b) {
 /* Method written by Sara to keep track of first five connection times and
  * initializing their positions and add next upcoming observations*/
 static void addConnectionTime(struct data *currentReq) {
-  if (count < 5) {
-    q[count++] = (double)currentReq->ctime;
-    if (count == 5) {
-      qsort(q, count, sizeof(double),
+  if (countconnection < 5) {
+    qconnection[countconnection++] = (double)currentReq->ctime;
+    if (countconnection == 5) {
+      qsort(qconnection, countconnection, sizeof(double),
             (int (*)(const void *, const void *))compareTimes);
       for (int i = 0; i < 5; i++)
-        n[i] = i;
+        nconnection[i] = i;
 
-      ns[0] = 0;
-      ns[1] = 2 * p;
-      ns[2] = 4 * p;
-      ns[3] = 2 + 2 * p;
-      ns[4] = 4;
+      nsconnection[0] = 0;
+      nsconnection[1] = 2 * p;
+      nsconnection[2] = 4 * p;
+      nsconnection[3] = 2 + 2 * p;
+      nsconnection[4] = 4;
 
-      dns[0] = 0;
-      dns[1] = p / 2;
-      dns[2] = p;
-      dns[3] = (1 + p) / 2;
-      dns[4] = 1;
+      dnsconnection[0] = 0;
+      dnsconnection[1] = p / 2;
+      dnsconnection[2] = p;
+      dnsconnection[3] = (1 + p) / 2;
+      dnsconnection[4] = 1;
     }
     return;
   }
 
   int k;
-  if ((double)currentReq->ctime < q[0]) {
-    q[0] = (double)currentReq->ctime;
+  if ((double)currentReq->ctime < qconnection[0]) {
+    qconnection[0] = (double)currentReq->ctime;
     k = 0;
   }
 
-  else if ((double)currentReq->ctime < q[1])
+  else if ((double)currentReq->ctime < qconnection[1])
     k = 0;
 
-  else if ((double)currentReq->ctime < q[2])
+  else if ((double)currentReq->ctime < qconnection[2])
     k = 1;
 
-  else if ((double)currentReq->ctime < q[3])
+  else if ((double)currentReq->ctime < qconnection[3])
     k = 2;
 
-  else if ((double)currentReq->ctime < q[4])
+  else if ((double)currentReq->ctime < qconnection[4])
     k = 3;
 
   else {
-    q[4] = (double)currentReq->ctime;
+    qconnection[4] = (double)currentReq->ctime;
     k = 3;
   }
 
   for (int i = k + 1; i < 5;
        i++) // incrementing position of markers k+1 through 5
-    n[i]++;
+    nconnection[i]++;
 
   for (int i = 0; i < 5; i++) // updating desired position
-    ns[i] += dns[i];
+    nsconnection[i] += dnsconnection[i];
 
   for (int i = 1; i <= 3; i++) {
-    double d = ns[i] - n[i];
-    if (d >= 1 && n[i + 1] - n[i] > 1 || d <= -1 && n[i - 1] - n[i] < -1) {
+    double d = nsconnection[i] - nconnection[i];
+    if (d >= 1 && nconnection[i + 1] - nconnection[i] > 1 || d <= -1 && nconnection[i - 1] - nconnection[i] < -1) {
       int dInt = getSign(d);
-      double qs = Parabolic(i, dInt);
-      if (q[i - 1] < qs && qs < q[i + 1])
-        q[i] = qs;
+      double qs = ParabolicConnection(i, dInt);
+      if (qconnection[i - 1] < qs && qs < qconnection[i + 1])
+        qconnection[i] = qs;
       else
-        q[i] = Linear(i, dInt);
-      n[i] += dInt;
+        qconnection[i] = LinearConnection(i, dInt);
+      nconnection[i] += dInt;
     }
   }
 
-  count++;
+  countconnection++;
 }
 
 /* Method added by Sara to get the third quantile of connection times- Median */
-double getQuantile() {
-  if (count <= 5) {
-    qsort(q, count, sizeof(double),
+static double getQuantileConnection() {
+  if (countconnection <= 5) {
+    qsort(qconnection, countconnection, sizeof(double),
           (int (*)(const void *, const void *))compareTimes);
-    int index = (int)round((count - 1) * p);
-    return q[index];
+    int index = (int)round((countconnection - 1) * p);
+    return qconnection[index];
   }
-  return q[2];
+  return qconnection[2];
 }
 
 
@@ -1286,7 +1291,7 @@ static void addWaitTime(struct data *currentReq) {
 }
 
 /* Method added by Sara to get the third quantile of waiting times- Median */
-double getWaitingQuantile() {
+static double getWaitingQuantile() {
   if (countwait <= 5) {
     qsort(qwait, countwait, sizeof(double),
           (int (*)(const void *, const void *))compareTimes);
@@ -1368,7 +1373,7 @@ static void addProcessingTime(struct data *currentReq) {
 }
 
 /* Method added by Sara to get the third quantile of processing times- Median */
-double getProcessingQuantile() {
+static double getProcessingQuantile() {
   if (countprocessing <= 5) {
     qsort(qprocessing, countprocessing, sizeof(double),
           (int (*)(const void *, const void *))compareTimes);
@@ -1442,7 +1447,7 @@ static void addTotalTime(struct data *currentReq) {
       if (qtotal[i - 1] < qs && qs < qtotal[i + 1])
         qtotal[i] = qs;
       else
-        q[i] = LinearTotal(i, dInt);
+        qtotal[i] = LinearTotal(i, dInt);
       ntotal[i] += dInt;
     }
   }
@@ -1451,7 +1456,7 @@ static void addTotalTime(struct data *currentReq) {
 }
 
 /* Method added by Sara to get the third quantile of total times- Median */
-double getTotalQuantile() {
+static double getTotalQuantile() {
   if (counttotal <= 5) {
     qsort(qtotal, counttotal, sizeof(double),
           (int (*)(const void *, const void *))compareTimes);
@@ -1695,16 +1700,21 @@ static void output_results(int sig) {
 
     
     /* Calculated by Sara */
-    connectionTimesMedian = getQuantile(); 
+    connectionMedianDoubleToTime = ap_max(0, getQuantileConnection());
+    connectionTimesMedian = (apr_interval_time_t)connectionMedianDoubleToTime; 
     connectionTimesMedian = ap_round_ms(connectionTimesMedian);
-    processingTimesMedian = getProcessingQuantile();
-    processingTimesMedian = ap_round_ms(processingTimesMedian);
-    waitTimesMedian = getWaitingQuantile(); 
-    waitTimesMedian = ap_round_ms(waitTimesMedian);
-    totalTimesMedian = getTotalQuantile();
-    totalTimesMedian = ap_round_ms(totalTimesMedian);
 
-    
+    processingMedianDoubleToTime = ap_max(0, getProcessingQuantile());
+    processingTimesMedian = (apr_interval_time_t)processingMedianDoubleToTime;
+    processingTimesMedian = ap_round_ms(processingTimesMedian);
+
+    waitingMedianDoubleToTime = ap_max(0, getWaitingQuantile());
+    waitTimesMedian = (apr_interval_time_t) waitingMedianDoubleToTime;
+    waitTimesMedian = ap_round_ms(waitTimesMedian);
+
+    totalMedianDoubleToTime = ap_max(0, getTotalQuantile());
+    totalTimesMedian = (apr_interval_time_t)totalMedianDoubleToTime;
+    totalTimesMedian = ap_round_ms(totalTimesMedian);
 
     if (confidence) {
 #define CONF_FMT_STRING                                                        \
@@ -1945,7 +1955,7 @@ static void output_html_results(void) {
     /*
      * Reduce stats from apr time to milliseconds
      */
-    mincon = ap_round_ms(mincon);
+   mincon = ap_round_ms(mincon);
     mintot = ap_round_ms(mintot);
     maxcon = ap_round_ms(maxcon);
     maxtot = ap_round_ms(maxtot);
@@ -1973,7 +1983,7 @@ static void output_html_results(void) {
       printf("<tr %s><th %s>Total:</th>"
              "<td %s>%5" APR_TIME_T_FMT "</td>"
              "<td %s>%5" APR_TIME_T_FMT "</td>"
-             "<td %s>%5" APR_TIME_T_FMT "</td></tr>\n",
+            "<td %s>%5" APR_TIME_T_FMT "</td></tr>\n",
              trstring, tdstring, tdstring, mintot, tdstring, total / done,
              tdstring, maxtot);
     }
@@ -2764,9 +2774,9 @@ static void test(void) {
   else
     printf("..done\n");
 
-  if (use_html)
-    output_html_results();
-  else
+  //if (use_html)
+  //  output_html_results();
+  //else
   //  output_results_sara_joon(0);
    output_results(0);
 }
