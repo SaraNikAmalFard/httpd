@@ -323,8 +323,8 @@ int proxyport = 0;         /* proxy port */
 const char *connecthost;
 const char *myhost;
 apr_port_t connectport;
-const char *gnuplot; /* GNUplot file */
-const char *csvperc; /* CSV Percentile file */
+const char *gnuplot;  /* GNUplot file */  // commented by Sara. Maybe we can have it later? 
+const char *csvperc;  /* CSV Percentile file */ // commented by Sara because we wouldn't have percentiles anymore
 const char *fullurl;
 const char *colonhost;
 int isproxy = 0;
@@ -379,11 +379,8 @@ apr_time_t meanTotal = 0; /* Global variable to hold the mean of all total times
 apr_time_t meanProcessing = 0; /* Global variable to hold the mean of all processing times */
 
 apr_interval_time_t connectionTimesMedian = 0; /* Global variable to hold the median value of cnnection times */
-
 apr_interval_time_t waitTimesMedian = 0; /* Global variable to hold the median value of wait times */
-
 apr_interval_time_t processingTimesMedian = 0; /* Global variable to hold the median value of processing times */
-
 apr_interval_time_t totalTimesMedian = 0; /* Global variable to hold the median value of total times */
 
 double sumOfSquaredConnectionTimes = 0;  /* To hold the sum of sqaure of each connection time */
@@ -1469,13 +1466,12 @@ static double getTotalQuantile() {
 static void output_results_sara_joon(int sig) {
 	printf("printf whatever you want here you may call anything \
 		you have developed over time\n");
-
-
 	return;
 }
 
 static void output_results(int sig) {
   double timetaken;
+  struct data sara_data;
 
   if (sig) {
     lasttime = apr_time_now(); /* record final time if interrupted */
@@ -1560,54 +1556,56 @@ static void output_results(int sig) {
     /* Stats is being used here too, the mechanism of the output result method
      * should be changed */
     /*Comment by Sara */
-    for (i = 0; i < done; i++) {
-      struct data *s = &stats[i];
-      mincon = ap_min(mincon, s->ctime);
-      mintot = ap_min(mintot, s->time);
-      mind = ap_min(mind, s->time - s->ctime);
-      minwait = ap_min(minwait, s->waittime);
+   /* for (i = 0; i < done; i++) 
+    {
+      //struct data *s = &stats[i];
+      mincon = ap_min(mincon, sara_data.ctime);
+      mintot = ap_min(mintot, sara_data.time);
+      mind = ap_min(mind, sara_data.time - sara_data.ctime);
+      minwait = ap_min(minwait, sara_data.waittime);
 
-      maxcon = ap_max(maxcon, s->ctime);
-      maxtot = ap_max(maxtot, s->time);
-      maxd = ap_max(maxd, s->time - s->ctime);
-      maxwait = ap_max(maxwait, s->waittime);
+      maxcon = ap_max(maxcon, sara_data.ctime);
+      maxtot = ap_max(maxtot, sara_data.time);
+      maxd = ap_max(maxd, sara_data.time - sara_data.ctime);
+      maxwait = ap_max(maxwait, sara_data.waittime);
 
-      totalcon += s->ctime;
-      total += s->time;
-      totald += s->time - s->ctime;
-      totalwait += s->waittime;
-    }
-    meancon = totalcon / done;
+      totalcon += sara_data.ctime;
+      total += sara_data.time;
+      totald += sara_data.time - sara_data.ctime;
+      totalwait += sara_data.waittime;
+    } */
+
+    /*meancon = totalcon / done;
     meantot = total / done;
     meand = totald / done;
-    meanwait = totalwait / done;
+    meanwait = totalwait / done; */
 
     /* calculating the sample variance: the sum of the squared deviations,
      * divided by n-1 */
-    for (i = 0; i < done; i++) {
-      struct data *s = &stats[i];
+    /*for (i = 0; i < done; i++) {
+      //struct data *s = &stats[i];
       double a;
-      a = ((double)s->time - meantot);
+      a = ((double)sara_data.time - meantot);
       sdtot += a * a;
-      a = ((double)s->ctime - meancon);
+      a = ((double)sara_data.ctime - meancon);
       sdcon += a * a;
-      a = ((double)s->time - (double)s->ctime - meand);
+      a = ((double)sara_data.time - (double)sara_data.ctime - meand);
       sdd += a * a;
-      a = ((double)s->waittime - meanwait);
+      a = ((double)sara_data.waittime - meanwait);
       sdwait += a * a;
-    }
+    } */
 
-    sdtot = (done > 1) ? sqrt(sdtot / (done - 1)) : 0;
+    /*sdtot = (done > 1) ? sqrt(sdtot / (done - 1)) : 0;
     sdcon = (done > 1) ? sqrt(sdcon / (done - 1)) : 0;
     sdd = (done > 1) ? sqrt(sdd / (done - 1)) : 0;
-    sdwait = (done > 1) ? sqrt(sdwait / (done - 1)) : 0;
+    sdwait = (done > 1) ? sqrt(sdwait / (done - 1)) : 0; */
 
     /*
      * XXX: what is better; this hideous cast of the compradre function; or
      * the four warnings during compile ? dirkx just does not know and
      * hates both/
      */
-    qsort(stats, done, sizeof(struct data),
+   /* qsort(stats, done, sizeof(struct data),
           (int (*)(const void *, const void *))compradre);
     if ((done > 1) && (done % 2))
       mediancon = (stats[done / 2].ctime + stats[done / 2 + 1].ctime) / 2;
@@ -1636,7 +1634,7 @@ static void output_results(int sig) {
     if ((done > 1) && (done % 2))
       mediantot = (stats[done / 2].time + stats[done / 2 + 1].time) / 2;
     else
-      mediantot = stats[done / 2].time;
+      mediantot = stats[done / 2].time; */
 
     printf("\nConnection Times (ms)\n");
     /*
@@ -1650,29 +1648,29 @@ static void output_results(int sig) {
     minTotal = ap_round_ms(minTotal);
 
     /*The real ones*/
-    mincon = ap_round_ms(mincon);
+    /*mincon = ap_round_ms(mincon);
     minwait = ap_round_ms(minwait);
     mind = ap_round_ms(mind);
-    mintot = ap_round_ms(mintot);
+    mintot = ap_round_ms(mintot); */
 
     /*The real ones*/
-    meancon = ap_round_ms(meancon);
+   /* meancon = ap_round_ms(meancon);
     meand = ap_round_ms(meand);
     meanwait = ap_round_ms(meanwait);
-    meantot = ap_round_ms(meantot);
+    meantot = ap_round_ms(meantot); */
 
     /* The real ones */
-    mediancon = ap_round_ms(mediancon);  
+    /*mediancon = ap_round_ms(mediancon);  
     mediand = ap_round_ms(mediand);      
     medianwait = ap_round_ms(medianwait);    
-    mediantot = ap_round_ms(mediantot);    
+    mediantot = ap_round_ms(mediantot); */    
 
 
     /*The real ones*/
-    maxcon = ap_round_ms(maxcon);
+   /* maxcon = ap_round_ms(maxcon);
     maxwait = ap_round_ms(maxwait);
     maxd = ap_round_ms(maxd);
-    maxtot = ap_round_ms(maxtot);
+    maxtot = ap_round_ms(maxtot); */
 
     /*Added by Sara*/
     maxConnection = ap_round_ms(maxConnection);
@@ -1687,10 +1685,10 @@ static void output_results(int sig) {
     meanTotal = ap_round_ms(meanTotal);
 
     /* Real ones */
-    sdcon = ap_double_ms(sdcon);
+   /* sdcon = ap_double_ms(sdcon);
     sdd = ap_double_ms(sdd);
     sdwait = ap_double_ms(sdwait);
-    sdtot = ap_double_ms(sdtot);
+    sdtot = ap_double_ms(sdtot); */
 
     //SD by Sara
     connectionTimesStandardDeviation = ap_double_ms(connectionTimesStandardDeviation);
@@ -1698,7 +1696,6 @@ static void output_results(int sig) {
     processingTimesStandardDeviation = ap_double_ms(processingTimesStandardDeviation);
     totalTimesStandardDeviation = ap_double_ms(totalTimesStandardDeviation);
 
-    
     /* Calculated by Sara */
     connectionMedianDoubleToTime = ap_max(0, getQuantileConnection());
     connectionTimesMedian = (apr_interval_time_t)connectionMedianDoubleToTime; 
@@ -1728,8 +1725,8 @@ static void output_results(int sig) {
 
       /*Copied by Sara to compare the real mincon and maxcon the the one we
        * calculated*/
-      printf("Connect Real:    " CONF_FMT_STRING, mincon, meancon, sdcon,
-             mediancon, maxcon);
+     // printf("Connect Real:    " CONF_FMT_STRING, mincon, meancon, sdcon,
+     //        mediancon, maxcon);
 
       printf("Processing: " CONF_FMT_STRING,
              /*mind*/ minProcessing, /*meand*/ meanProcessing, /*sdd*/processingTimesStandardDeviation, /*mediand*/ processingTimesMedian,
@@ -1737,8 +1734,8 @@ static void output_results(int sig) {
 
       /*Copied by Sara to compare the real mind and maxd with the ones we
        * calculated, mind = minPrcessing*/
-      printf("Processing Real: " CONF_FMT_STRING, mind, meand, sdd, mediand,
-             maxd);
+     // printf("Processing Real: " CONF_FMT_STRING, mind, meand, sdd, mediand,
+     //        maxd);
 
       printf("Waiting:   " CONF_FMT_STRING,
              /*minwait*/ /* Commented by Sara*/ minWait,
@@ -1746,8 +1743,8 @@ static void output_results(int sig) {
 
       /* Copied by Sara to compare the calculated min and max wait with the real
        * one*/
-      printf("Waiting Real:    " CONF_FMT_STRING, minwait, meanwait, sdwait,
-             medianwait, maxwait);
+     // printf("Waiting Real:    " CONF_FMT_STRING, minwait, meanwait, sdwait,
+     //        medianwait, maxwait);
 
       printf("Total:      " CONF_FMT_STRING,
              /*mintot*/ /*Commented by Sara*/ minTotal, /*meantot*/ meanTotal,
@@ -1755,8 +1752,8 @@ static void output_results(int sig) {
 
       /*Copied by Sara to compare the calculated total time with the real min
        * and max total */
-      printf("Total Real:      " CONF_FMT_STRING, mintot, meantot, sdtot,
-             mediantot, maxtot);
+     // printf("Total Real:      " CONF_FMT_STRING, mintot, meantot, sdtot,
+     //        mediantot, maxtot);
 #undef CONF_FMT_STRING
 
 #define SANE(what, mean, median, sd)                                           \
@@ -1773,23 +1770,23 @@ static void output_results(int sig) {
              " are not within a normal deviation\n"                            \
              "        These results are probably not that reliable.\n");       \
   }
-      SANE("the initial connection time", meancon, mediancon, sdcon);
-      SANE("the processing time", meand, mediand, sdd);
-      SANE("the waiting time", meanwait, medianwait, sdwait);
-      SANE("the total time", meantot, mediantot, sdtot);
+      SANE("the initial connection time", /*meancon*/ meanConnection, /*mediancon*/ connectionTimesMedian, /*sdcon*/ connectionTimesStandardDeviation);
+      SANE("the processing time", /*meand*/ meanProcessing, /*mediand*/ processingTimesMedian, /*sdd*/ processingTimesStandardDeviation);
+      SANE("the waiting time", /*meanwait*/ meanWaiting, /*medianwait*/ waitTimesMedian, /*sdwait*/ waitTimesStandardDeviation);
+      SANE("the total time", /*meantot*/ meanTotal, /*mediantot*/ totalTimesMedian, /*sdtot*/ totalTimesStandardDeviation);
     } else {
       printf("              min   avg   max\n");
 #define CONF_FMT_STRING                                                        \
   "%5" APR_TIME_T_FMT " %5" APR_TIME_T_FMT "%5" APR_TIME_T_FMT "\n"
-      printf("Connect:    " CONF_FMT_STRING, mincon, meancon, maxcon);
-      printf("Processing: " CONF_FMT_STRING, mind, meand, maxd);
-      printf("Waiting:    " CONF_FMT_STRING, minwait, meanwait, maxwait);
-      printf("Total:      " CONF_FMT_STRING, mintot, meantot, maxtot);
+      printf("Connect:    " CONF_FMT_STRING, /*mincon*/ minConnection, /*meancon*/meanConnection, /*maxcon*/ maxConnection);
+      printf("Processing: " CONF_FMT_STRING, /*mind*/ minProcessing,/* meannd*/ meanProcessing, /*maxd*/ maxProcessing);
+      printf("Waiting:    " CONF_FMT_STRING, /*minwait*/ minWait, /*meanwait*/ meanWaiting, /*maxwait*/ maxWait);
+      printf("Total:      " CONF_FMT_STRING, /*mintot*/ minTotal, /*meantot*/ meanTotal, /*maxtot*/ maxTotal);
 #undef CONF_FMT_STRING
     }
 
     /* Sorted on total connect times */
-    if (percentile && (done > 1)) {
+   /* if (percentile && (done > 1)) {
       printf(
           "\nPercentage of the requests served within a certain time (ms)\n");
       for (i = 0; i < sizeof(percs) / sizeof(int); i++) {
@@ -1802,8 +1799,9 @@ static void output_results(int sig) {
           printf("  %d%%  %5" APR_TIME_T_FMT "\n", percs[i],
                  ap_round_ms(stats[(unsigned long)done * percs[i] / 100].time));
       }
-    }
-    if (csvperc) {
+    } */
+
+   /* if (csvperc) {
       FILE *out = fopen(csvperc, "w");
       if (!out) {
         perror("Cannot open CSV output file");
@@ -1826,8 +1824,9 @@ static void output_results(int sig) {
         fprintf(out, "%d,%.3f\n", i, t);
       }
       fclose(out);
-    }
-    if (gnuplot) {
+    } */
+
+   /* if (gnuplot) {
       FILE *out = fopen(gnuplot, "w");
       char tmstring[APR_CTIME_LEN];
       if (!out) {
@@ -1846,7 +1845,7 @@ static void output_results(int sig) {
                 ap_round_ms(stats[i].time), ap_round_ms(stats[i].waittime));
       }
       fclose(out);
-    }
+    } */
   }
 
   if (sig) {
@@ -1860,6 +1859,7 @@ static void output_results(int sig) {
 
 static void output_html_results(void) {
   double timetaken = (double)(lasttime - start) / APR_USEC_PER_SEC;
+  struct data sara_data;
 
   printf("\n\n<table %s>\n", tablestring);
   printf("<tr %s><th colspan=2 %s>Server Software:</th>"
@@ -1944,18 +1944,25 @@ static void output_html_results(void) {
     apr_interval_time_t maxcon = 0, maxtot = 0;
 
     for (i = 0; i < done; i++) {
-      struct data *s = &stats[i];
-      mincon = ap_min(mincon, s->ctime);
+      //struct data *s = &stats[i]; // commented by Sara
+     /* mincon = ap_min(mincon, s->ctime);
       mintot = ap_min(mintot, s->time);
       maxcon = ap_max(maxcon, s->ctime);
       maxtot = ap_max(maxtot, s->time);
       totalcon += s->ctime;
-      total += s->time;
+      total += s->time; */
+
+      mincon = ap_min(mincon, sara_data.ctime);
+      mintot = ap_min(mintot, sara_data.time);
+      maxcon = ap_max(maxcon, sara_data.ctime);
+      maxtot = ap_max(maxtot, sara_data.time);
+      totalcon += sara_data.ctime;
+      total += sara_data.time;
     }
     /*
      * Reduce stats from apr time to milliseconds
      */
-   mincon = ap_round_ms(mincon);
+    mincon = ap_round_ms(mincon);
     mintot = ap_round_ms(mintot);
     maxcon = ap_round_ms(maxcon);
     maxtot = ap_round_ms(maxtot);
@@ -2134,12 +2141,15 @@ static void close_connection(struct connection *c) {
     /* save out time */
     /*Here stats is being used, which needs to be eliminated, comment by Sara*/
     if (done < requests) {
-      struct data *s = &stats[done++]; 
+
+      //struct data *s = &stats[done++]; 
+      done++; //by Sara
       c->done = lasttime = apr_time_now();
-      s->starttime = c->start;
-      s->ctime = ap_max(0, c->connect - c->start);
-      s->time = ap_max(0, c->done - c->start);
-      s->waittime = ap_max(0, c->beginread - c->endwrite); 
+
+      //s->starttime = c->start;
+      //s->ctime = ap_max(0, c->connect - c->start);
+      //s->time = ap_max(0, c->done - c->start);
+      //s->waittime = ap_max(0, c->beginread - c->endwrite); 
 
   
       /*Calling getMinConnection and getMinWait methods in close connection
@@ -2432,15 +2442,15 @@ read_more:
     /*Here also stats is being used, needs to be removed, Comment by Sara */
     if (done < requests) {
     
-      struct data *s = &stats[done++];
+     // struct data *s = &stats[done++];
       doneka++;
-
+      done++; // by Sara
       // Please do the same thing here! Alireza
       c->done = apr_time_now();
-      s->starttime = c->start;
-      s->ctime = ap_max(0, c->connect - c->start);
-      s->time = ap_max(0, c->done - c->start);
-      s->waittime = ap_max(0, c->beginread - c->endwrite);
+     // s->starttime = c->start;
+     // s->ctime = ap_max(0, c->connect - c->start);
+     // s->time = ap_max(0, c->done - c->start);
+     // s->waittime = ap_max(0, c->beginread - c->endwrite);
       
       /* Adding the changes Alireza said to here for keep alive option */
       sara_data.starttime = c->start;
@@ -2534,7 +2544,7 @@ static void test(void) {
 
   /*This is where AB is allocating memory, regarding the number of requests */
   /*Commented by Sara*/
-  stats = xcalloc(requests, sizeof(struct data));
+ /* stats = xcalloc(requests, sizeof(struct data)); */  //commented by Sara
 
   if ((status = apr_pollset_create(&readbits, concurrency, cntxt,
                                    APR_POLLSET_NOCOPY)) != APR_SUCCESS) {
@@ -3113,15 +3123,15 @@ int main(int argc, const char *const argv[]) {
         err("Cannot mix HEAD with other methods\n");
       method = HEAD;
       break;
-    case 'g':
+    /*case 'g':
       gnuplot = xstrdup(opt_arg);
-      break;
+      break; */
     case 'd':
       percentile = 0;
       break;
-    case 'e':
+   /* case 'e':
       csvperc = xstrdup(opt_arg);
-      break;
+      break; */
     case 'S':
       confidence = 0;
       break;
