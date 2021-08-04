@@ -2139,7 +2139,6 @@ static void close_connection(struct connection *c) {
       err_length++;
     }
     /* save out time */
-    /*Here stats is being used, which needs to be eliminated, comment by Sara*/
     if (done < requests) {
 
       //struct data *s = &stats[done++]; 
@@ -2439,7 +2438,6 @@ read_more:
       err_length++;
     }
 
-    /*Here also stats is being used, needs to be removed, Comment by Sara */
     if (done < requests) {
     
      // struct data *s = &stats[done++];
@@ -2542,7 +2540,6 @@ static void test(void) {
    * XXX: would be nice.
    */
 
-  /*This is where AB is allocating memory, regarding the number of requests */
   /*Commented by Sara*/
  /* stats = xcalloc(requests, sizeof(struct data)); */  //commented by Sara
 
