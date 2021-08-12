@@ -323,8 +323,8 @@ int proxyport = 0;         /* proxy port */
 const char *connecthost;
 const char *myhost;
 apr_port_t connectport;
-const char *gnuplot;  /* GNUplot file */  // commented by Sara. Maybe we can have it later? 
-const char *csvperc;  /* CSV Percentile file */ // commented by Sara because we wouldn't have percentiles anymore
+const char *gnuplot;  /* GNUplot file */  
+const char *csvperc;  /* CSV Percentile file */ 
 const char *fullurl;
 const char *colonhost;
 int isproxy = 0;
@@ -358,41 +358,41 @@ int err_recv = 0;            /* requests failed due to broken read */
 int err_except = 0;          /* requests failed due to exception */
 int err_response = 0;        /* requests with invalid or non-200 response */
 
-apr_interval_time_t minConnection = AB_MAX; /*This global minimum connection time is added by Sara to keep track of min connection online*/
-apr_interval_time_t minWait = AB_MAX; /*This global minimum waiting time is added by Sara to keep track min waiting online*/
-apr_interval_time_t minTotal = AB_MAX; /*This global minimum total time is added by Sara to keep track of min total online*/
-apr_interval_time_t minProcessing = AB_MAX; /*This global minimum processing time is added by Sara to keep track of min waiting online*/
+apr_interval_time_t minConnection = AB_MAX;           /* global minimum connection time*/
+apr_interval_time_t minWait = AB_MAX;                 /*global minimum wait time*/
+apr_interval_time_t minTotal = AB_MAX;                /*global minimum total time*/
+apr_interval_time_t minProcessing = AB_MAX;           /*global minimum processing time*/
 
-apr_interval_time_t maxConnection = 0; /*This global maximum total time is added by Sara to keep track of max connection online*/
-apr_interval_time_t maxWait = 0; /*This global maximum total time is added by Sara to keep track of max waiting time online*/
-apr_interval_time_t maxTotal = 0; /*This global maximum total time is added by Sara to keep track of max total time online*/
-apr_interval_time_t maxProcessing = 0; /*This global maximum total time is added by Sara to keep track of max processing online*/
+apr_interval_time_t maxConnection = 0;                /* global maximum connection time*/
+apr_interval_time_t maxWait = 0;                      /*global maximum wait time*/
+apr_interval_time_t maxTotal = 0;                     /*global maximum total time*/
+apr_interval_time_t maxProcessing = 0;                /* global maximum prcessing time*/
 
-apr_time_t sumOfConnectionTimes = 0; /*Keeping track of sum of all connection times for all requests, to use later for calculating mean of connection time*/
-apr_time_t sumOfWaitingTimes = 0; /*Keeping track of sum of all waiting times for all requests, to use later for calculating mean of waiting time*/
-apr_time_t sumOfProcessingTimes = 0; /*Keeping track of sum of all processing times for all requests, to use later for calculating mean of processing time*/
-apr_time_t sumOfTotalTimes = 0; /*Keeping track of sum of all total times for all requests, to use later for calculating mean of total time*/
+apr_time_t sumOfConnectionTimes = 0;                  /*sum of all connection times*/
+apr_time_t sumOfWaitingTimes = 0;                     /*sum of all waiting times*/
+apr_time_t sumOfProcessingTimes = 0;                  /*sum of all processing times*/
+apr_time_t sumOfTotalTimes = 0;                       /*sum of all total times*/
 
-apr_time_t meanConnection = 0; /* Global variable to hold the mean of all connection times */
-apr_time_t meanWaiting = 0; /* Global variable to hold the mean of all waiting times */
-apr_time_t meanTotal = 0; /* Global variable to hold the mean of all total times */
-apr_time_t meanProcessing = 0; /* Global variable to hold the mean of all processing times */
+apr_time_t meanConnection = 0;                       /*  mean of connection times */
+apr_time_t meanWaiting = 0;                          /*  mean of wait times */
+apr_time_t meanTotal = 0;                            /*  mean of total times */
+apr_time_t meanProcessing = 0;                       /*  mean of processing times */
 
-apr_interval_time_t connectionTimesMedian = 0; /* Global variable to hold the median value of cnnection times */
-apr_interval_time_t waitTimesMedian = 0; /* Global variable to hold the median value of wait times */
-apr_interval_time_t processingTimesMedian = 0; /* Global variable to hold the median value of processing times */
-apr_interval_time_t totalTimesMedian = 0; /* Global variable to hold the median value of total times */
+apr_interval_time_t connectionTimesMedian = 0;             /* median of cnnection times */
+apr_interval_time_t waitTimesMedian = 0;                  /* median of wait times */
+apr_interval_time_t processingTimesMedian = 0;           /* median of processing times */
+apr_interval_time_t totalTimesMedian = 0;                /* median of total times */
 
-double sumOfSquaredConnectionTimes = 0;  /* To hold the sum of sqaure of each connection time */
+double sumOfSquaredConnectionTimes = 0;                  /* sum of sqaure of each connection time */
 double connectionTimesStandardDeviation = 0;
 
-double sumOfSquaredWaitTimes = 0; /* To hold the sum of sqaure of each wait time */
+double sumOfSquaredWaitTimes = 0;                     /* sum of sqaure of each wait time */
 double waitTimesStandardDeviation = 0;
 
-double sumOfSquaredProcessingTimes = 0; /* To hold the sum of sqaure of each processing time */
+double sumOfSquaredProcessingTimes = 0;               /* sum of sqaure of each processing time */
 double processingTimesStandardDeviation = 0;
 
-double sumOfSquaredTotalTimes = 0; /* To hold the sum of sqaure of each total time */
+double sumOfSquaredTotalTimes = 0;                  /* sum of sqaure of each total time */
 double totalTimesStandardDeviation = 0;
 
 
@@ -430,36 +430,35 @@ int percs[] = {50, 66, 75, 80, 90, 95, 98, 99, 100};
 
 struct connection *con; /* connection array */
 struct data *stats;     /* data for each request */
-// struct data sara_data_global;
 
 
-double p = 0.5; /*for median we need the %50 quantile which leads to p=0.5 */
-/* parameters needed to calculate the median of connection times */
-int nconnection[5];       /*marker position*/
-double nsconnection[5];   /*desired marker position*/
-double dnsconnection[5]; /* how the indexes should change regarding their desired position */
-double qconnection[5]; /* marker heights */
+double p = 0.5;           /* median is equal to the %50 quantile */
+/* parameters for calculating the median of connection times */
+int nconnection[5];          /*horizontal marker position*/
+double nsconnection[5];      /*desired marker position*/
+double dnsconnection[5];     /* how indexes should change regarding their desired position */
+double qconnection[5];       /* marker height */
 int countconnection = 0;
 
 /* parameters needed to calculate the median of wait times */
-int nwait[5];        /*marker position*/
-double nswait[5];   /*desired marker position*/
-double dnswait[5]; /* how the indexes should change regarding their desired position */
-double qwait[5]; /* marker heights */
+int nwait[5];                     /* horizontal marker position*/
+double nswait[5];                  /*desired marker position*/
+double dnswait[5];                 /* how  indexes should change regarding their desired position */
+double qwait[5];                   /* marker height*/
 int countwait = 0; 
 
 /* parameters needed to calculate the median of processing times */
-int nprocessing[5];
-double nsprocessing[5];   /*desired marker position*/
-double dnsprocessing[5]; /* how the indexes should change regarding their desired position */
-double qprocessing[5]; /* marker heights */
+int nprocessing[5];              /* horizontal marker position */
+double nsprocessing[5];          /*desired marker position*/
+double dnsprocessing[5];         /* how indexes should change regarding their desired position */
+double qprocessing[5];           /* marker height*/
 int countprocessing = 0;
 
 /* parameters needed to calculate the median of total times */
-int ntotal[5];
-double nstotal[5];   /*desired marker position*/
-double dnstotal[5]; /* how the indexes should change regarding their desired position */
-double qtotal[5]; /* marker heights */
+int ntotal[5];                 /* horizontal marker position  */
+double nstotal[5];             /*desired marker position*/
+double dnstotal[5];            /* how indexes should change regarding their desired position */
+double qtotal[5];              /* marker height*/
 int counttotal = 0;
 
 double connectionMedianDoubleToTime = 0;
@@ -492,7 +491,7 @@ static void err(const char *s) {
   exit(1);
 }
 
-/* Method written by Sara to get the sign of a number, -1 for negative, 1 for
+/* New method to get the sign of a number, -1 for negative, 1 for
  * positive and 0 for zero numbers */
 static int getSign(int n) {
   if (n < 0)
@@ -504,14 +503,6 @@ static int getSign(int n) {
   else
     return 0;
 }
-
-/* Method added by Sara to calculate the Parabolic formula */
-/*static double Parabolic(int i, double d) {
-  return q[i] +
-         d / (n[i + 1] - n[i - 1]) *
-             ((n[i] - n[i - 1] + d) * (q[i + 1] - q[i]) / (n[i + 1] - n[i]) +
-              (n[i + 1] - n[i] - d) * (q[i] - q[i - 1]) / (n[i] - n[i - 1]));
-}*/
 
 static double ParabolicConnection(int i, double d) {
   return qconnection[i] +
@@ -541,19 +532,6 @@ static double ParabolicTotal(int i, double d) {
               (ntotal[i + 1] - ntotal[i] - d) * (qtotal[i] - qtotal[i - 1]) / (ntotal[i] - ntotal[i - 1]));
 }
 
-/* Method added by Sara to calculate the Parabolic formula */
-/*static double Parabolic(int i, double d, double queue[], int m[]) {
-  return queue[i] +
-         d / (m[i + 1] - m[i - 1]) *
-             ((m[i] - m[i - 1] + d) * (queue[i + 1] - queue[i]) / (m[i + 1] - m[i]) +
-              (m[i + 1] - m[i] - d) * (queue[i] - queue[i - 1]) / (m[i] - m[i - 1]));
-}*/
-
-/* Method added by Sara to calculate the Linear formula */
-/*double Linear(int i, int d) {
-  return q[i] + d * (q[i + d] - q[i]) / (n[i + d] - n[i]);
-}*/
-
 double LinearConnection(int i, int d) {
   return qconnection[i] + d * (qconnection[i + d] - qconnection[i]) / (nconnection[i + d] - nconnection[i]);
 }
@@ -569,10 +547,6 @@ double LinearProcessing(int i, int d) {
 double LinearTotal(int i, int d) {
   return qtotal[i] + d * (qtotal[i + d] - qtotal[i]) / (ntotal[i + d] - ntotal[i]);
 }
-/* Method added by Sara to calculate the Linear formula */
-/*double Linear(int i, int d, double queue[], int m[]) {
-  return queue[i] + d * (queue[i + d] - queue[i]) / (m[i + d] - m[i]);
-}*/
 
 /* simple little function to write an APR error string and exit */
 static void apr_err(const char *s, apr_status_t rv) {
@@ -1021,8 +995,7 @@ static void write_request(struct connection *c) {
   set_conn_state(c, STATE_READ);
 }
 
-/* This method is added by Sara to calculate the minimum time of connection
- * without stats (online)*/
+/* Online calculation of minimum Connection time*/
 static apr_interval_time_t getMinConnection(struct data *currentReq) {
   sumOfConnectionTimes += currentReq->ctime;
   sumOfSquaredConnectionTimes += (double)currentReq->ctime * currentReq->ctime;
@@ -1030,8 +1003,7 @@ static apr_interval_time_t getMinConnection(struct data *currentReq) {
   return minConnection;
 }
 
-/*This method is added by Sara to calculate the minimum waiting time without
- * stats (online)*/
+/*Online calculation of minimum Wait time*/
 static apr_interval_time_t getMinWait(struct data *currentReq) {
   sumOfWaitingTimes += currentReq->waittime;
   sumOfSquaredWaitTimes += (double)currentReq->waittime * currentReq->waittime;
@@ -1039,8 +1011,7 @@ static apr_interval_time_t getMinWait(struct data *currentReq) {
   return minWait;
 }
 
-/*This method is added by Sara to calculate the minimum processing time without
- * stats (online)*/
+/*Online calculation of minimum Processing time*/
 static apr_interval_time_t getMinProcessing(struct data *currentReq) {
   sumOfProcessingTimes += currentReq->time - currentReq->ctime;
   sumOfSquaredProcessingTimes += (double)((currentReq->time - currentReq->ctime) * (currentReq->time - currentReq->ctime));
@@ -1048,8 +1019,7 @@ static apr_interval_time_t getMinProcessing(struct data *currentReq) {
   return minProcessing;
 }
 
-/*This method is added by Sara to calculate the minimum total time without stats
- * (online)*/
+/*Online calculation of minimum Total time*/
 static apr_interval_time_t getMinTotal(struct data *currentReq) {
   sumOfTotalTimes += currentReq->time;
   sumOfSquaredTotalTimes += (double) currentReq->time * currentReq->time;
@@ -1057,29 +1027,25 @@ static apr_interval_time_t getMinTotal(struct data *currentReq) {
   return minTotal;
 }
 
-/*This method is added by Sara to calculate the maximum connection time without
- * stats (online)*/
+/*Online calculation of maximum Connection time*/
 static apr_interval_time_t getMaxConnection(struct data *currentReq) {
   maxConnection = ap_max(maxConnection, currentReq->ctime);
   return maxConnection;
 };
 
-/*This method is added by Sara to calculate the maximum waiting time without
- * stats (online)*/
+/*Online calculation of maximum Wait time*/
 static apr_interval_time_t getMaxWait(struct data *currentReq) {
   maxWait = ap_max(maxWait, currentReq->waittime);
   return maxWait;
 }
 
-/*This method is added by Sara to calculate the maximum processing time without
- * stats (online)*/
+/*Online calculation of maximum Processing time*/
 static apr_interval_time_t getMAxProcessing(struct data *currentReq) {
   maxProcessing = ap_max(maxProcessing, currentReq->time - currentReq->ctime);
   return maxProcessing;
 }
 
-/*This method is added by Sara to calculate the maximum total time without stats
- * (online)*/
+/*Online calculation of maximum Total time*/
 static apr_interval_time_t getMaxTotal(struct data *currentReq) {
   maxTotal = ap_max(maxTotal, currentReq->time);
   return maxTotal;
@@ -1097,7 +1063,7 @@ static int compradre(struct data *a, struct data *b) {
   return 0;
 }
 
-/* Added by Sara to compare times */
+/* New general method to compare times */
 static int compareTimes(double aTime, double bTime) {
   if (aTime > bTime)
     return +1;
@@ -1132,8 +1098,8 @@ static int compwait(struct data *a, struct data *b) {
   return 0;
 }
 
-/* Method written by Sara to keep track of first five connection times and
- * initializing their positions and add next upcoming observations*/
+/*  keeping track of first five connection times and
+ * initializing their positions and adding next upcoming observations, for P-square algorithm*/
 static void addConnectionTime(struct data *currentReq) {
   if (countconnection < 5) {
     qconnection[countconnection++] = (double)currentReq->ctime;
@@ -1204,7 +1170,7 @@ static void addConnectionTime(struct data *currentReq) {
   countconnection++;
 }
 
-/* Method added by Sara to get the third quantile of connection times- Median */
+/* New method to get the third quantile of connection times = Median */
 static double getQuantileConnection() {
   if (countconnection <= 5) {
     qsort(qconnection, countconnection, sizeof(double),
@@ -1216,8 +1182,8 @@ static double getQuantileConnection() {
 }
 
 
-/* Method written by Sara to keep track of first five waiting times and
- * initializing their positions and add the next upcoming observations*/ 
+ /*  keeping track of first five Wait times and
+  initializing their positions and adding next upcoming observations, for P-square algorithm*/ 
 static void addWaitTime(struct data *currentReq) {
   if (countwait < 5) {
     qwait[countwait++] = (double)currentReq->waittime;
@@ -1287,7 +1253,7 @@ static void addWaitTime(struct data *currentReq) {
   countwait++;
 }
 
-/* Method added by Sara to get the third quantile of waiting times- Median */
+/* New method to get the third quantile of waiting times = Median */
 static double getWaitingQuantile() {
   if (countwait <= 5) {
     qsort(qwait, countwait, sizeof(double),
@@ -1298,8 +1264,8 @@ static double getWaitingQuantile() {
   return qwait[2];
 }
 
-/* Method written by Sara to keep track of first five processing times and
- * initializing their positions and add the next upcoming observations*/ 
+/*  keeping track of first five processing times and
+  initializing their positions and adding next upcoming observations, for P-square algorithm*/
 static void addProcessingTime(struct data *currentReq) {
   if (countprocessing < 5) {
     qprocessing[countprocessing++] = (double) (currentReq->time - currentReq->ctime);
@@ -1369,7 +1335,7 @@ static void addProcessingTime(struct data *currentReq) {
   countprocessing++;
 }
 
-/* Method added by Sara to get the third quantile of processing times- Median */
+/* New method to get the third quantile of processing times = Median */
 static double getProcessingQuantile() {
   if (countprocessing <= 5) {
     qsort(qprocessing, countprocessing, sizeof(double),
@@ -1380,8 +1346,8 @@ static double getProcessingQuantile() {
   return qprocessing[2];
 }
 
-/* Method written by Sara to keep track of first five total times and
- * initializing their positions and add the next upcoming observations*/ 
+ /*  keeping track of first five total times and
+  initializing their positions and adding next upcoming observations, for P-square algorithm*/
 static void addTotalTime(struct data *currentReq) {
   if (counttotal < 5) {
     qtotal[counttotal++] = (double)currentReq->time;
@@ -1452,7 +1418,7 @@ static void addTotalTime(struct data *currentReq) {
   counttotal++;
 }
 
-/* Method added by Sara to get the third quantile of total times- Median */
+/* New method to get the third quantile of total times- Median */
 static double getTotalQuantile() {
   if (counttotal <= 5) {
     qsort(qtotal, counttotal, sizeof(double),
@@ -1463,15 +1429,9 @@ static double getTotalQuantile() {
   return qtotal[2];
 }
 
-static void output_results_sara_joon(int sig) {
-	printf("printf whatever you want here you may call anything \
-		you have developed over time\n");
-	return;
-}
-
 static void output_results(int sig) {
   double timetaken;
-  struct data sara_data;
+ 
 
   if (sig) {
     lasttime = apr_time_now(); /* record final time if interrupted */
@@ -1553,26 +1513,23 @@ static void output_results(int sig) {
                         medianwait = 0;
     double sdtot = 0, sdcon = 0, sdd = 0, sdwait = 0;
 
-    /* Stats is being used here too, the mechanism of the output result method
-     * should be changed */
-    /*Comment by Sara */
    /* for (i = 0; i < done; i++) 
     {
       //struct data *s = &stats[i];
-      mincon = ap_min(mincon, sara_data.ctime);
-      mintot = ap_min(mintot, sara_data.time);
-      mind = ap_min(mind, sara_data.time - sara_data.ctime);
-      minwait = ap_min(minwait, sara_data.waittime);
+      mincon = ap_min(mincon, s->ctime);
+      mintot = ap_min(mintot, s->time);
+      mind = ap_min(mind, s->time - s->ctime);
+      minwait = ap_min(minwait, s->waittime);
 
-      maxcon = ap_max(maxcon, sara_data.ctime);
-      maxtot = ap_max(maxtot, sara_data.time);
-      maxd = ap_max(maxd, sara_data.time - sara_data.ctime);
-      maxwait = ap_max(maxwait, sara_data.waittime);
+      maxcon = ap_max(maxcon, s->ctime);
+      maxtot = ap_max(maxtot, s->time);
+      maxd = ap_max(maxd, s->time - s->ctime);
+      maxwait = ap_max(maxwait, s->waittime);
 
-      totalcon += sara_data.ctime;
-      total += sara_data.time;
-      totald += sara_data.time - sara_data.ctime;
-      totalwait += sara_data.waittime;
+      totalcon += s->ctime;
+      total += s->time;
+      totald += s->time - s->ctime;
+      totalwait += s->waittime;
     } */
 
     /*meancon = totalcon / done;
@@ -1585,13 +1542,13 @@ static void output_results(int sig) {
     /*for (i = 0; i < done; i++) {
       //struct data *s = &stats[i];
       double a;
-      a = ((double)sara_data.time - meantot);
+      a = ((double)s->time - meantot);
       sdtot += a * a;
-      a = ((double)sara_data.ctime - meancon);
+      a = ((double)s->ctime - meancon);
       sdcon += a * a;
-      a = ((double)sara_data.time - (double)sara_data.ctime - meand);
+      a = ((double)s->time - (double)s->ctime - meand);
       sdd += a * a;
-      a = ((double)sara_data.waittime - meanwait);
+      a = ((double)s->waittime - meanwait);
       sdwait += a * a;
     } */
 
@@ -1641,62 +1598,62 @@ static void output_results(int sig) {
      * Reduce stats from apr time to milliseconds
      */
 
-    /*Added by Sara*/
+    /* Online computaion */
     minConnection = ap_round_ms(minConnection);
     minWait = ap_round_ms(minWait);
     minProcessing = ap_round_ms(minProcessing);
     minTotal = ap_round_ms(minTotal);
 
-    /*The real ones*/
+    /*Offline computation*/
     /*mincon = ap_round_ms(mincon);
     minwait = ap_round_ms(minwait);
     mind = ap_round_ms(mind);
     mintot = ap_round_ms(mintot); */
 
-    /*The real ones*/
+    /*Offline computation*/
    /* meancon = ap_round_ms(meancon);
     meand = ap_round_ms(meand);
     meanwait = ap_round_ms(meanwait);
     meantot = ap_round_ms(meantot); */
 
-    /* The real ones */
+    /* Offline computation */
     /*mediancon = ap_round_ms(mediancon);  
     mediand = ap_round_ms(mediand);      
     medianwait = ap_round_ms(medianwait);    
     mediantot = ap_round_ms(mediantot); */    
 
 
-    /*The real ones*/
+    /*Offline computation*/
    /* maxcon = ap_round_ms(maxcon);
     maxwait = ap_round_ms(maxwait);
     maxd = ap_round_ms(maxd);
     maxtot = ap_round_ms(maxtot); */
 
-    /*Added by Sara*/
+    /*Online computation*/
     maxConnection = ap_round_ms(maxConnection);
     maxWait = ap_round_ms(maxWait);
     maxProcessing = ap_round_ms(maxProcessing);
     maxTotal = ap_round_ms(maxTotal);
 
-    /*Calculated by  Sara*/
+    /*Online computation*/
     meanConnection = ap_round_ms(meanConnection);
     meanWaiting = ap_round_ms(meanWaiting);
     meanProcessing = ap_round_ms(meanProcessing);
     meanTotal = ap_round_ms(meanTotal);
 
-    /* Real ones */
+    /* Offline computation */
    /* sdcon = ap_double_ms(sdcon);
     sdd = ap_double_ms(sdd);
     sdwait = ap_double_ms(sdwait);
     sdtot = ap_double_ms(sdtot); */
 
-    //SD by Sara
+  /*Online computation*/
     connectionTimesStandardDeviation = ap_double_ms(connectionTimesStandardDeviation);
     waitTimesStandardDeviation = ap_double_ms(waitTimesStandardDeviation);
     processingTimesStandardDeviation = ap_double_ms(processingTimesStandardDeviation);
     totalTimesStandardDeviation = ap_double_ms(totalTimesStandardDeviation);
 
-    /* Calculated by Sara */
+    /*Online computation*/
     connectionMedianDoubleToTime = ap_max(0, getQuantileConnection());
     connectionTimesMedian = (apr_interval_time_t)connectionMedianDoubleToTime; 
     connectionTimesMedian = ap_round_ms(connectionTimesMedian);
@@ -1719,12 +1676,11 @@ static void output_results(int sig) {
   " %7" APR_TIME_T_FMT "\n"
       printf("              min  mean[+/-sd] median   max\n");
       printf("Connect:   " CONF_FMT_STRING,
-             /*mincon* /*Commented by Sara*/ minConnection,
+             /*mincon*/ minConnection,
              /*meancon*/ meanConnection, /*sdcon*/ connectionTimesStandardDeviation,
              /*mediancon*/ connectionTimesMedian, /*maxcon*/ maxConnection);
 
-      /*Copied by Sara to compare the real mincon and maxcon the the one we
-       * calculated*/
+     
      // printf("Connect Real:    " CONF_FMT_STRING, mincon, meancon, sdcon,
      //        mediancon, maxcon);
 
@@ -1732,26 +1688,20 @@ static void output_results(int sig) {
              /*mind*/ minProcessing, /*meand*/ meanProcessing, /*sdd*/processingTimesStandardDeviation, /*mediand*/ processingTimesMedian,
              /*maxd*/ maxProcessing);
 
-      /*Copied by Sara to compare the real mind and maxd with the ones we
-       * calculated, mind = minPrcessing*/
      // printf("Processing Real: " CONF_FMT_STRING, mind, meand, sdd, mediand,
      //        maxd);
 
       printf("Waiting:   " CONF_FMT_STRING,
-             /*minwait*/ /* Commented by Sara*/ minWait,
+             /*minwait*/ minWait,
              /*meanwait*/ meanWaiting, /*sdwait*/ waitTimesStandardDeviation, /*medianwait*/ waitTimesMedian, /*maxwait*/ maxWait);
 
-      /* Copied by Sara to compare the calculated min and max wait with the real
-       * one*/
      // printf("Waiting Real:    " CONF_FMT_STRING, minwait, meanwait, sdwait,
      //        medianwait, maxwait);
 
       printf("Total:      " CONF_FMT_STRING,
-             /*mintot*/ /*Commented by Sara*/ minTotal, /*meantot*/ meanTotal,
+             /*mintot*/  minTotal, /*meantot*/ meanTotal,
              /*sdtot*/totalTimesStandardDeviation, /*mediantot*/ totalTimesMedian, /*maxtot*/ maxTotal);
 
-      /*Copied by Sara to compare the calculated total time with the real min
-       * and max total */
      // printf("Total Real:      " CONF_FMT_STRING, mintot, meantot, sdtot,
      //        mediantot, maxtot);
 #undef CONF_FMT_STRING
@@ -1859,7 +1809,7 @@ static void output_results(int sig) {
 
 static void output_html_results(void) {
   double timetaken = (double)(lasttime - start) / APR_USEC_PER_SEC;
-  struct data sara_data;
+  struct data new_data;
 
   printf("\n\n<table %s>\n", tablestring);
   printf("<tr %s><th colspan=2 %s>Server Software:</th>"
@@ -1944,7 +1894,7 @@ static void output_html_results(void) {
     apr_interval_time_t maxcon = 0, maxtot = 0;
 
     for (i = 0; i < done; i++) {
-      //struct data *s = &stats[i]; // commented by Sara
+      /*struct data *s = &stats[i]; */
      /* mincon = ap_min(mincon, s->ctime);
       mintot = ap_min(mintot, s->time);
       maxcon = ap_max(maxcon, s->ctime);
@@ -1952,12 +1902,12 @@ static void output_html_results(void) {
       totalcon += s->ctime;
       total += s->time; */
 
-      mincon = ap_min(mincon, sara_data.ctime);
-      mintot = ap_min(mintot, sara_data.time);
-      maxcon = ap_max(maxcon, sara_data.ctime);
-      maxtot = ap_max(maxtot, sara_data.time);
-      totalcon += sara_data.ctime;
-      total += sara_data.time;
+      mincon = ap_min(mincon, new_data.ctime);
+      mintot = ap_min(mintot, new_data.time);
+      maxcon = ap_max(maxcon, new_data.ctime);
+      maxtot = ap_max(maxtot, new_data.time);
+      totalcon += new_data.ctime;
+      total += new_data.time;
     }
     /*
      * Reduce stats from apr time to milliseconds
@@ -2121,8 +2071,8 @@ static void start_connect(struct connection *c) {
 /* close down connection and save stats */
 
 static void close_connection(struct connection *c) {
-  /* Added by Sara to replace stats */
-  struct data sara_data;
+  /* Added to replace stats */
+  struct data new_data;
 
   if (c->read == 0 && c->keepalive) {
     /*
@@ -2142,7 +2092,7 @@ static void close_connection(struct connection *c) {
     if (done < requests) {
 
       //struct data *s = &stats[done++]; 
-      done++; //by Sara
+      done++; 
       c->done = lasttime = apr_time_now();
 
       //s->starttime = c->start;
@@ -2151,43 +2101,46 @@ static void close_connection(struct connection *c) {
       //s->waittime = ap_max(0, c->beginread - c->endwrite); 
 
   
-      /*Calling getMinConnection and getMinWait methods in close connection
-       * method, not sure if this is the correct place yet!*/
-      /* Added by Sara */
-      sara_data.starttime = c->start;
-      sara_data.ctime = ap_max(0, c->connect - c->start);
-      sara_data.time = ap_max(0, c->done - c->start);
-      sara_data.waittime = ap_max(0, c->beginread - c->endwrite);
+      new_data.starttime = c->start;
+      new_data.ctime = ap_max(0, c->connect - c->start);
+      new_data.time = ap_max(0, c->done - c->start);
+      new_data.waittime = ap_max(0, c->beginread - c->endwrite);
 
-      minConnection = getMinConnection(&sara_data);
-      minProcessing = getMinProcessing(&sara_data);
-      minWait = getMinWait(&sara_data);
-      minTotal = getMinTotal(&sara_data);
+      minConnection = getMinConnection(&new_data);
+      minProcessing = getMinProcessing(&new_data);
+      minWait = getMinWait(&new_data);
+      minTotal = getMinTotal(&new_data);
 
-      maxConnection = getMaxConnection(&sara_data);
-      maxProcessing = getMAxProcessing(&sara_data);
-      maxWait = getMaxWait(&sara_data);
-      maxTotal = getMaxTotal(&sara_data);
+      maxConnection = getMaxConnection(&new_data);
+      maxProcessing = getMAxProcessing(&new_data);
+      maxWait = getMaxWait(&new_data);
+      maxTotal = getMaxTotal(&new_data);
 
-      if (done > 0) 
-      {
+      if (done > 0){
         meanConnection = sumOfConnectionTimes / done;
         meanProcessing = sumOfProcessingTimes / done;
         meanWaiting = sumOfWaitingTimes / done;
         meanTotal = sumOfTotalTimes / done;
-
-        /* Calculating standard deviation */
-        connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes-((double)(sumOfConnectionTimes * sumOfConnectionTimes)/done))/(done-1));
+      }
+      
+      if(done > 1){
+       /* Calculating standard deviation */
+        connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes - ((double)(sumOfConnectionTimes * sumOfConnectionTimes)/done))/(done-1));
         waitTimesStandardDeviation = sqrt((sumOfSquaredWaitTimes-((double)(sumOfWaitingTimes * sumOfWaitingTimes)/done))/(done-1));
         processingTimesStandardDeviation = sqrt((sumOfSquaredProcessingTimes - ((double)(sumOfProcessingTimes * sumOfProcessingTimes)/done))/(done-1));
         totalTimesStandardDeviation = sqrt((sumOfSquaredTotalTimes - ((double)(sumOfTotalTimes * sumOfTotalTimes)/done))/(done-1));
       }
-
-      /* methods added by Sara */
-      addConnectionTime(&sara_data);
-      addProcessingTime(&sara_data);
-      addWaitTime(&sara_data);
-      addTotalTime(&sara_data);
+      else{
+        connectionTimesStandardDeviation = 0;
+        waitTimesStandardDeviation = 0;
+        processingTimesStandardDeviation = 0;
+        totalTimesStandardDeviation = 0;
+      }
+      /* real-time methods */
+      addConnectionTime(&new_data);
+      addProcessingTime(&new_data);
+      addWaitTime(&new_data);
+      addTotalTime(&new_data);
       
       if (heartbeatres && !(done % heartbeatres)) {
         fprintf(stderr, "Completed %d requests\n", done);
@@ -2221,7 +2174,7 @@ static void read_connection(struct connection *c) {
   char *part;
   char respcode[4]; /* 3 digits and null */
   int i;
-  struct data sara_data;  /* new modification by Sara to delete stats*/
+  struct data new_data;  /* Added to replace stats*/
 
   r = sizeof(buffer);
 read_more:
@@ -2442,47 +2395,54 @@ read_more:
     
      // struct data *s = &stats[done++];
       doneka++;
-      done++; // by Sara
-      // Please do the same thing here! Alireza
+      done++; 
       c->done = apr_time_now();
      // s->starttime = c->start;
      // s->ctime = ap_max(0, c->connect - c->start);
      // s->time = ap_max(0, c->done - c->start);
      // s->waittime = ap_max(0, c->beginread - c->endwrite);
       
-      /* Adding the changes Alireza said to here for keep alive option */
-      sara_data.starttime = c->start;
-      sara_data.ctime = ap_max(0, c->connect - c->start);
-      sara_data.time = ap_max(0, c->done - c->start);
-      sara_data.waittime = ap_max(0, c->beginread - c->endwrite);
+      /* for keep alive option */
+      new_data.starttime = c->start;
+      new_data.ctime = ap_max(0, c->connect - c->start);
+      new_data.time = ap_max(0, c->done - c->start);
+      new_data.waittime = ap_max(0, c->beginread - c->endwrite);
 
-      minConnection = getMinConnection(&sara_data);
-      minProcessing = getMinProcessing(&sara_data);
-      minWait = getMinWait(&sara_data);
-      minTotal = getMinTotal(&sara_data);
+      minConnection = getMinConnection(&new_data);
+      minProcessing = getMinProcessing(&new_data);
+      minWait = getMinWait(&new_data);
+      minTotal = getMinTotal(&new_data);
 
-      maxConnection = getMaxConnection(&sara_data);
-      maxProcessing = getMAxProcessing(&sara_data);
-      maxWait = getMaxWait(&sara_data);
-      maxTotal = getMaxTotal(&sara_data);
+      maxConnection = getMaxConnection(&new_data);
+      maxProcessing = getMAxProcessing(&new_data);
+      maxWait = getMaxWait(&new_data);
+      maxTotal = getMaxTotal(&new_data);
 
       if (done > 0) {
         meanConnection = sumOfConnectionTimes / done;
         meanProcessing = sumOfProcessingTimes / done;
         meanWaiting = sumOfWaitingTimes / done;
         meanTotal = sumOfTotalTimes / done;
+      }
 
+      if(done > 1){
         /* Calculating standard deviation */
         connectionTimesStandardDeviation = sqrt((sumOfSquaredConnectionTimes-((double)(sumOfConnectionTimes * sumOfConnectionTimes)/done))/(done-1));
         waitTimesStandardDeviation = sqrt((sumOfSquaredWaitTimes-((double)(sumOfWaitingTimes * sumOfWaitingTimes)/done))/(done-1));
         processingTimesStandardDeviation = sqrt((sumOfSquaredProcessingTimes - ((double)(sumOfProcessingTimes * sumOfProcessingTimes)/done))/(done-1));
         totalTimesStandardDeviation = sqrt((sumOfSquaredTotalTimes - ((double)(sumOfTotalTimes * sumOfTotalTimes)/done))/(done-1));
       }
+      else{
+        connectionTimesStandardDeviation = 0;
+        waitTimesStandardDeviation = 0;
+        processingTimesStandardDeviation = 0;
+        totalTimesStandardDeviation = 0;
+      }
 
-      addConnectionTime(&sara_data);
-      addProcessingTime(&sara_data);
-      addWaitTime(&sara_data);
-      addTotalTime(&sara_data);
+      addConnectionTime(&new_data);
+      addProcessingTime(&new_data);
+      addWaitTime(&new_data);
+      addTotalTime(&new_data);
       /* uo to here */
 
       if (heartbeatres && !(done % heartbeatres)) {
@@ -2540,8 +2500,9 @@ static void test(void) {
    * XXX: would be nice.
    */
 
-  /*Commented by Sara*/
- /* stats = xcalloc(requests, sizeof(struct data)); */  //commented by Sara
+
+  /* Eliminating th euse of stats in calculations, no need to allocate O(request) memory! */
+ /* stats = xcalloc(requests, sizeof(struct data)); */  
 
   if ((status = apr_pollset_create(&readbits, concurrency, cntxt,
                                    APR_POLLSET_NOCOPY)) != APR_SUCCESS) {
@@ -2781,10 +2742,9 @@ static void test(void) {
   else
     printf("..done\n");
 
-  //if (use_html)
-  //  output_html_results();
-  //else
-  //  output_results_sara_joon(0);
+  if (use_html)
+    output_html_results();
+  else
    output_results(0);
 }
 
